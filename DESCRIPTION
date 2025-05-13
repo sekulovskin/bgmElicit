@@ -15,3 +15,5 @@ Imports:
     stringr,
     keyring,
     httr
+URL: https://github.com/sekulovskin/llmBgmElicit
+BugReports: https://github.com/sekulovskin/llmBgmElicit/issues

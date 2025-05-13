@@ -1,0 +1,17 @@
+Package: llmBgmElicit
+Title: Elicit Prior Edge Inclusion Probabilities for Bayesian Graphical Models Using LLMs
+Version: 0.0.0.9000
+Authors@R: c(
+    person("Nikola", "Sekulovski", email = "n.sekulovski@uva.nl", role = c("aut", "cre")),
+    person("Meike", "Waaijers", role = "ctb"),
+    person("Giuseppe", "Arena", role = "ctb"))
+Description: Provides functions for eliciting prior edge inclusion probabilities in Bayesian graphical models (BGMs) using large language models (LLMs). The package allows users to specify variable sets and optional contextual information to query LLMs for conditional associations between variable pairs. It includes both a full and simplified elicitation function, as well as utilities for handling API access and LLM responses. It also provides the option to elicit the parameters for a Beta-Binomial distribution on the network structure.
+License: MIT
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    dplyr,
+    stringr,
+    keyring,
+    httr

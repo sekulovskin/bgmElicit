@@ -1,7 +1,3 @@
----
-output: github_document
----
-
 # llmBgmElicit 
 
 NOTE: This package is in development and a paper is in preparation.

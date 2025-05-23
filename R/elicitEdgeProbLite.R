@@ -262,7 +262,7 @@ elicitEdgeProbLite <- function(context,
     }
 
     all_prob <- list()
-    valid_tokens <- c("i", "e")
+    valid_tokens <- c("I", "E")
 
     for (l in 1:length(last_token)) {
       probs <- list()
@@ -313,9 +313,9 @@ elicitEdgeProbLite <- function(context,
       for (k in 1:n_prompts) {  # Only loop through used prompts
         for (j in seq_along(all_prob[[i]][[k]]$Class)) {
           token <- trimws(tolower(all_prob[[i]][[k]]$Class[j]))
-          if (token == "i") {
+          if (token == "I") {
             prob_i <- prob_i + as.numeric(all_prob[[i]][[k]]$Probability[j])
-          } else if (token == "e") {
+          } else if (token == "E") {
             prob_e <- prob_e + as.numeric(all_prob[[i]][[k]]$Probability[j])
           }
         }

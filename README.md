@@ -42,7 +42,7 @@ result_lite <- elicitEdgeProbLite(
   ),
   variable_list = c("Screen Time", "Physical Activity", 
   "Cardiovascular Health"),
-  LLM_model = "gpt-4o",
+  LLM_model = "gpt-4",
   n_perm = 2
 )
 
@@ -58,7 +58,7 @@ result_lite <- elicitEdgeProbLite(
   ),
   variable_list = c("Screen Time", "Physical Activity", 
   "Cardiovascular Health"),
-  LLM_model = "gpt-4o",
+  LLM_model = "gpt-4",
   n_perm = 3
 )
 

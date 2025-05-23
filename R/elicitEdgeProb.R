@@ -102,9 +102,9 @@ elicitEdgeProb <- function(context,
 
   if (missing(n_perm)) {
     n_perm <- 2 # generate two permutations by default
-      message(
-        "The n_perm argument was not specified. The function will proceed using two permutations of the variable pair order."
-      )
+    message(
+      "The n_perm argument was not specified. The function will proceed using two permutations of the variable pair order."
+    )
   }
 
   # if n_perm is zero
@@ -143,22 +143,22 @@ elicitEdgeProb <- function(context,
     }))
   } else {
 
-  bern_prompts <- data.frame(
-    Function = rep("bernoulli", 2),
-    Function.Part = rep("bernoulli", 2),
-    context = c("n", "y"),
-    Variation.Prompt = rep("Prompt1", 2),
-    Variation.Sys.Prompt = rep("Prompt1", 2),
-    Prompt = c(
-      # Without context
-      "Establish whether there is a conditional association between the variables x and y. If a conditional association exists, it means that the variables remain related even after accounting for the relationships between the other variables in the network. However, if the other variables explain away the relation between x and y, then an edge should be absent. Your output should be either 'I' for included edges, meaning there is a conditional association between the variables, or 'E' for excluded edges, meaning the association is fully explained by the other variables in the network. Consider all previous decisions when evaluating subsequent pairs.\n\nCurrent target pair: '(pairs_df[i, 2])' & '(pairs_df[i, 1])'\n\nPrevious decisions in this network:\n(previous_decisions)\n\nRemaining variables to consider: (remaining_vars)\n\nOutput format:\n'Var1' & 'Var2': I/E",
+    bern_prompts <- data.frame(
+      Function = rep("bernoulli", 2),
+      Function.Part = rep("bernoulli", 2),
+      context = c("n", "y"),
+      Variation.Prompt = rep("Prompt1", 2),
+      Variation.Sys.Prompt = rep("Prompt1", 2),
+      Prompt = c(
+        # Without context
+        "Establish whether there is a conditional association between the variables x and y. If a conditional association exists, it means that the variables remain related even after accounting for the relationships between the other variables in the network. However, if the other variables explain away the relation between x and y, then an edge should be absent. Your output should be either 'I' for included edges, meaning there is a conditional association between the variables, or 'E' for excluded edges, meaning the association is fully explained by the other variables in the network. Consider all previous decisions when evaluating subsequent pairs.\n\nCurrent target pair: '(pairs_df[i, 2])' & '(pairs_df[i, 1])'\n\nPrevious decisions in this network:\n(previous_decisions)\n\nRemaining variables to consider: (remaining_vars)\n\nOutput format:\n'Var1' & 'Var2': I/E",
 
-      # With context
-      "Establish whether there is a conditional association between the variables x and y. If a conditional association exists, it means that the variables remain related even after accounting for the relationships between the other variables in the network. However, if the other variables explain away the relation between x and y, then an edge should be absent. Your output should be either 'I' for included edges, meaning there is a conditional association between the variables, or 'E' for excluded edges, meaning the association is fully explained by the other variables in the network. Consider all previous decisions when evaluating subsequent pairs.\n\nCurrent target pair: '(pairs_df[i, 2])' & '(pairs_df[i, 1])'\n\nPrevious decisions in this network:\n(previous_decisions)\n\nRemaining variables to consider: (remaining_vars)\n\nContext to consider: '(context)'\n\nOutput format:\n'Var1' & 'Var2': I/E"
-    ),
-    Sys.Prompt = rep("You are an expert in using graphical models to study psychological constructs. You will be asked to classify whether there is a conditional relationship between pairs of variables in a Markov random field grapical model, applied to psychological research. You must use your vast prior knowledge of the relationships between the variables to make informed decisions. Evaluate conditional associations between variable pairs in sequence, considering all previous decisions. For each pair, output 'I' if there's a direct association after accounting for other variables, or 'E' if the association is explained by other variables. Only output 'I' or 'E' with no additional text.", 2)
-  )
- }
+        # With context
+        "Establish whether there is a conditional association between the variables x and y. If a conditional association exists, it means that the variables remain related even after accounting for the relationships between the other variables in the network. However, if the other variables explain away the relation between x and y, then an edge should be absent. Your output should be either 'I' for included edges, meaning there is a conditional association between the variables, or 'E' for excluded edges, meaning the association is fully explained by the other variables in the network. Consider all previous decisions when evaluating subsequent pairs.\n\nCurrent target pair: '(pairs_df[i, 2])' & '(pairs_df[i, 1])'\n\nPrevious decisions in this network:\n(previous_decisions)\n\nRemaining variables to consider: (remaining_vars)\n\nContext to consider: '(context)'\n\nOutput format:\n'Var1' & 'Var2': I/E"
+      ),
+      Sys.Prompt = rep("You are an expert in using graphical models to study psychological constructs. You will be asked to classify whether there is a conditional relationship between pairs of variables in a Markov random field grapical model, applied to psychological research. You must use your vast prior knowledge of the relationships between the variables to make informed decisions. Evaluate conditional associations between variable pairs in sequence, considering all previous decisions. For each pair, output 'I' if there's a direct association after accounting for other variables, or 'E' if the association is explained by other variables. Only output 'I' or 'E' with no additional text.", 2)
+    )
+  }
   # Initialize output objects
   raw_LLM <- list()
   logprobs_LLM <- list()
@@ -212,13 +212,13 @@ elicitEdgeProb <- function(context,
 
       # LLM call
       LLM_output <- callLLM(prompt = prompt,
-                        LLM_model = LLM_model,
-                        max_tokens = max_tokens,
-                        temperature = 0,
-                        logprobs = TRUE,
-                        raw_output = TRUE,
-                        system_prompt = system_prompt,
-                        update_key = update_key)
+                            LLM_model = LLM_model,
+                            max_tokens = max_tokens,
+                            temperature = 0,
+                            logprobs = TRUE,
+                            raw_output = TRUE,
+                            system_prompt = system_prompt,
+                            update_key = update_key)
 
       update_key <- FALSE # make sure api key is only updated once
 
@@ -237,55 +237,65 @@ elicitEdgeProb <- function(context,
 
   # Process results (similar to original but accounting for permutations)
   tryCatch({
-    if (LLM_model == "mixtral" | LLM_model == "llama-3"){
-      last_token <- list()
-      for (perm_idx in 1:length(logprobs_LLM)) {
-        last_token_perm <- list()
-        for (pair_order in 1:length(logprobs_LLM[[perm_idx]])) {
-          last_token_perm[[pair_order]] <- logprobs_LLM[[perm_idx]][[pair_order]][[1]]
-          last_token_perm[[pair_order]]$top5_tokens <- trimws(tolower(last_token_perm[[pair_order]]$top5_tokens))
-        }
-        last_token[[perm_idx]] <- last_token_perm
-      }
-    } else {
-      last_token <- list()
-      for (perm_idx in 1:length(logprobs_LLM)) {
-        last_token_perm <- list()
-        for (pair_order in 1:length(logprobs_LLM[[perm_idx]])) {
-          last_token_perm[[pair_order]] <- logprobs_LLM[[perm_idx]][[pair_order]][[length(logprobs_LLM[[perm_idx]][[pair_order]])]]
-          last_token_perm[[pair_order]]$top5_tokens <- trimws(tolower(last_token_perm[[pair_order]]$top5_tokens))
-        }
-        last_token[[perm_idx]] <- last_token_perm
-      }
-    }
-
     # Initialize probability matrix
     prob_matrix <- matrix(NA, nrow = n_pairs, ncol = n_perm)
 
-    # Extract probabilities for each pair in each permutation
-    valid_tokens <- c("i", "e")
+    # Define models that should use direct parsing
+    parse_models <- c("mixtral", "llama-3")
 
-    for (perm_idx in 1:n_perm) {
-      for (pair_order in 1:n_pairs) {
-        pair_idx <- perms[perm_idx, pair_order]
-        token_data <- last_token[[perm_idx]][[pair_order]]
+    if (LLM_model %in% parse_models) {
+      # Robust direct parsing for Mixtral and Llama
+      for (perm_idx in 1:n_perm) {
+        for (pair_order in 1:n_pairs) {
+          pair_idx <- perms[perm_idx, pair_order]
 
-        prob_i <- 0
-        prob_e <- 0
+          raw_text <- trimws(tolower(raw_LLM[[perm_idx]][[pair_order]]$content))
+          decision_match <- regmatches(raw_text, regexpr("[ie](?!.*[ie])", raw_text, perl=TRUE))
 
-        for (m in 1:nrow(token_data)) {
-          token <- trimws(tolower(token_data$top5_tokens[m]))
-          if (token %in% valid_tokens) {
-            if (token == "i") prob_i <- prob_i + as.numeric(token_data$probability[m])
-            if (token == "e") prob_e <- prob_e + as.numeric(token_data$probability[m])
+          if (length(decision_match) > 0) {
+            decision <- decision_match
+            prob_matrix[pair_idx, perm_idx] <- ifelse(decision == "i", 1, 0)
+          } else {
+            prob_matrix[pair_idx, perm_idx] <- 0.5  # Default fallback
           }
         }
+      }
+    } else {
+      # Existing logprob-based approach for GPT models
+      last_token <- list()
+      for (perm_idx in 1:length(logprobs_LLM)) {
+        last_token_perm <- list()
+        for (pair_order in 1:length(logprobs_LLM[[perm_idx]])) {
+          token_list_length <- length(logprobs_LLM[[perm_idx]][[pair_order]])
+          last_token_perm[[pair_order]] <- logprobs_LLM[[perm_idx]][[pair_order]][[token_list_length]]
+          last_token_perm[[pair_order]]$top5_tokens <- trimws(tolower(last_token_perm[[pair_order]]$top5_tokens))
+        }
+        last_token[[perm_idx]] <- last_token_perm
+      }
 
-        # Calculate probability for this pair in this permutation
-        if (prob_i + prob_e > 0) {
-          prob_matrix[pair_idx, perm_idx] <- prob_i / (prob_i + prob_e)
-        } else {
-          prob_matrix[pair_idx, perm_idx] <- 0.5  # Default if no valid tokens
+      valid_tokens <- c("i", "e")
+
+      for (perm_idx in 1:n_perm) {
+        for (pair_order in 1:n_pairs) {
+          pair_idx <- perms[perm_idx, pair_order]
+          token_data <- last_token[[perm_idx]][[pair_order]]
+
+          prob_i <- 0
+          prob_e <- 0
+
+          for (m in 1:nrow(token_data)) {
+            token <- trimws(tolower(token_data$top5_tokens[m]))
+            if (token %in% valid_tokens) {
+              if (token == "i") prob_i <- prob_i + as.numeric(token_data$probability[m])
+              if (token == "e") prob_e <- prob_e + as.numeric(token_data$probability[m])
+            }
+          }
+
+          if (prob_i + prob_e > 0) {
+            prob_matrix[pair_idx, perm_idx] <- prob_i / (prob_i + prob_e)
+          } else {
+            prob_matrix[pair_idx, perm_idx] <- 0.5
+          }
         }
       }
     }
@@ -416,4 +426,3 @@ elicitEdgeProb <- function(context,
   class(output) <- "elicitEdgeProb"
   return(output)
 }
-

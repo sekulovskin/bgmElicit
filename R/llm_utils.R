@@ -1,5 +1,5 @@
 # Utility functions
-# Some of these functions are obtaine from the theoraizer package
+# Some of these functions are obtained from the theoraizer package
 # https://github.com/MeikeWaaijers/theoraizer
 
 # logprob helper function
@@ -77,83 +77,140 @@ getApiKey <- function(service_name, update_key = FALSE) {
 
 ## the main callLLM function
 callLLM <- function(prompt = prompt,
-                LLM_model = "gpt-4o",
-                max_tokens = 2000,
-                temperature = 0,
-                # suffix = NULL,
-                top_p = 1,
-                logprobs = TRUE,
-                top_logprobs = 5,
-                # stop = NULL,
-                # presence_penalty = 0,
-                # frequency_penalty = 0,
-                timeout_sec = 60,
-                system_prompt = NULL,
-                raw_output = TRUE,
-                update_key = update_key){
+                    LLM_model = "gpt-4o",
+                    max_tokens = 2000,
+                    temperature = 0,
+                    # suffix = NULL,
+                    top_p = 1,
+                    logprobs = TRUE,
+                    top_logprobs = 5,
+                    # stop = NULL,
+                    # presence_penalty = 0,
+                    # frequency_penalty = 0,
+                    timeout_sec = 60,
+                    system_prompt = NULL,
+                    raw_output = TRUE,
+                    update_key = update_key){
 
-  api_key <- getApiKey("openai",
-                         update_key = update_key)
+  if (LLM_model == "mixtral" | LLM_model == "llama-3") {
+    api_key <- getApiKey("huggingface",
+                           update_key = update_key)
 
-  # API endpoint
-  endpoint <- "https://api.openai.com/v1/chat/completions"
+    if (LLM_model == "mixtral") {
+      # API endpoint
+      endpoint <- "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1/v1/chat/completions"
+      model <- "mistralai/Mixtral-8x7B-Instruct-v0.1"
 
-  if (logprobs == TRUE) {
-    # Request body
-    request_body <- list(
-      model = LLM_model,
-      max_tokens = max_tokens,
-      temperature = temperature,
-      # n = 1,
-      # suffix = suffix,
-      # top_p = top_p,
-      top_logprobs = top_logprobs,
-      logprobs = logprobs,
-      # stop = stop,
-      # presence_penalty = presence_penalty,
-      # frequency_penalty = frequency_penalty,
-      messages = list(
-        list(role = "system", content = system_prompt),
-        list(role = "user", content = prompt)
+    } else if (LLM_model == "llama-3") {
+      # API endpoint
+      endpoint <- "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct/v1/chat/completions"
+      model <- "meta-llama/Meta-Llama-3-8B-Instruct"
+
+    }
+
+    if (logprobs == TRUE) {
+      # Request body
+      request_body <- list(model = model,
+                           max_tokens = max_tokens,
+                           messages = list(
+                             list("role" = "system", "content" = system_prompt),
+                             list("role" = "user", "content" = prompt)
+                           ),
+                           temperature = temperature,
+                           logprobs = logprobs,
+                           top_logprobs = top_logprobs)
+
+    } else if (logprobs == FALSE) {
+      # Request body
+      request_body <- list(model = model,
+                           max_tokens = max_tokens,
+                           messages = list(
+                             list("role" = "system", "content" = system_prompt),
+                             list("role" = "user", "content" = prompt)
+                           ),
+                           temperature = temperature,
+                           logprobs = logprobs)
+
+    }
+
+    # Make the API request
+    request <- httr::RETRY(verb = "POST",
+                           url = endpoint,
+                           body = request_body,
+                           httr::add_headers(Authorization = paste("Bearer", api_key),
+                                             `Content-Type` = "application/json"),
+                           encode = "json",
+                           times = 5,
+                           httr::timeout(timeout_sec))
+
+    # Extract the response
+    raw_content <- content <- httr::content(request)
+    output <- content$choices[[1]]$message$content
+
+  } else if (LLM_model == "gpt-4o" | LLM_model == "gpt-4" | LLM_model == "gpt-4-turbo" | LLM_model == "gpt-3.5-turbo") {
+
+    api_key <- getApiKey("openai",
+                           update_key = update_key)
+
+    # API endpoint
+    endpoint <- "https://api.openai.com/v1/chat/completions"
+
+    if (logprobs == TRUE) {
+      # Request body
+      request_body <- list(
+        model = LLM_model,
+        max_tokens = max_tokens,
+        temperature = temperature,
+        # n = 1,
+        # suffix = suffix,
+        # top_p = top_p,
+        top_logprobs = top_logprobs,
+        logprobs = logprobs,
+        # stop = stop,
+        # presence_penalty = presence_penalty,
+        # frequency_penalty = frequency_penalty,
+        messages = list(
+          list(role = "system", content = system_prompt),
+          list(role = "user", content = prompt)
+        )
       )
-    )
 
-  } else if (logprobs == FALSE) {
-    # Request body
-    request_body <- list(
-      model = LLM_model,
-      max_tokens = max_tokens,
-      temperature = temperature,
-      # n = 1,
-      # suffix = suffix,
-      # top_p = top_p,
-      logprobs = logprobs,
-      # stop = stop,
-      # presence_penalty = presence_penalty,
-      # frequency_penalty = frequency_penalty,
-      messages = list(
-        list(role = "system", content = system_prompt),
-        list(role = "user", content = prompt)
+    } else if (logprobs == FALSE) {
+      # Request body
+      request_body <- list(
+        model = LLM_model,
+        max_tokens = max_tokens,
+        temperature = temperature,
+        # n = 1,
+        # suffix = suffix,
+        # top_p = top_p,
+        logprobs = logprobs,
+        # stop = stop,
+        # presence_penalty = presence_penalty,
+        # frequency_penalty = frequency_penalty,
+        messages = list(
+          list(role = "system", content = system_prompt),
+          list(role = "user", content = prompt)
+        )
       )
-    )
+
+    }
+
+    # Make the API request
+    request <- httr::RETRY(verb = "POST",
+                           url = endpoint,
+                           body = request_body,
+                           httr::add_headers(Authorization = paste("Bearer",
+                                                                   api_key)),
+                           encode = "json",
+                           times = 5,
+                           httr::timeout(timeout_sec))
+
+    # Extract the response
+    raw_content <- content <- httr::content(request)
+    output <- content$choices[[1]]$message$content
 
   }
-
-  # Make the API request
-  request <- httr::RETRY(verb = "POST",
-                         url = endpoint,
-                         body = request_body,
-                         httr::add_headers(Authorization = paste("Bearer",
-                                                                 api_key)),
-                         encode = "json",
-                         times = 5,
-                         httr::timeout(timeout_sec))
-
-  # Extract the response
-  raw_content <- content <- httr::content(request)
-  output <- content$choices[[1]]$message$content
-
-
 
   if (raw_output == TRUE && logprobs == TRUE){
     top5_logprobs <- getLLMLogprobs(raw_content = raw_content,

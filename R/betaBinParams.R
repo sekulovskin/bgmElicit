@@ -20,7 +20,7 @@
 #' description of edge inclusion uncertainty across network realizations.
 #'
 #' For `elicitEdgeProbLite` objects, edge inclusion is determined from
-#' the raw content per iteration. For `elicitEdgeProb` objects, edge inclusion is extracted
+#' the raw content per permutation. For `elicitEdgeProb` objects, edge inclusion is extracted
 #' from the full I/E sequence in the final output for each permutation.
 #'
 #' A warning is issued if fewer than 10 permutations are detected, as parameter estimation
@@ -59,7 +59,7 @@ betaBinParams <- function(llmobject,
   if (inherits(llmobject, "elicitEdgeProbLite")) {
     df <- llmobject$raw_LLM
     sum_ones_vector <- df %>%
-      group_by(iteration) %>%
+      group_by(permutation) %>%
       summarize(sum_ones = sum(ifelse(content == "I", 1, 0))) %>%
       pull(sum_ones)
     bb <- estimateBetaBin(sum_ones_vector, n = no_edges)

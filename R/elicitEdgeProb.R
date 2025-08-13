@@ -24,7 +24,9 @@
 #' @param main_prompt Optional vector of character strings to be used as a system prompt for the LLM.
 #' If `NULL`, a default system prompt is used. The prompt should be a single string.
 #' #' @param display_progress Logical. If `TRUE`, displays progress messages during processing. Default is `TRUE`.
-#'
+#' @param logprobs Logical. If `TRUE`, requests log probabilities from the LLM for the first token. Only available
+#' for models that support logprobs (e.g., `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`). Default is `TRUE`.
+#' # if LLM_model does not support logprobs, this argument is ignored.
 #' @return A list of class `"elicitEdgeProb"` with the following elements:
 #' \describe{
 #'   \item{`relation_df`}{A data frame with columns `var1`, `var2`, and `prob`, representing
@@ -58,20 +60,39 @@ elicitEdgeProb <- function(context,
                            n_perm = NULL,
                            seed = 123,
                            main_prompt = NULL,
-                           display_progress = TRUE) {
-  # Argument validation (as before)
+                           display_progress = TRUE,
+                           logprobs = TRUE) {
+  # ---------- helpers ----------
+  `%||%` <- function(x, y) if (is.null(x)) y else x
+
+  model_supports_logprobs <- function(m) {
+    # logprobs are supported on classic chat/completions families
+    grepl("^gpt-4o$|^gpt-4-turbo$|^gpt-4$|^gpt-3\\.5-turbo$", m)
+  }
+
+  # safe, single-char decision from text ("I"/"E"/"?")
+  extract_decision_char <- function(txt) {
+    ch <- substr(trimws(txt %||% ""), 1, 1)
+    if (!nzchar(ch)) return("?")
+    ch <- tolower(ch)
+    if (ch %in% c("i", "e")) ch else "?"
+  }
+
+  # ---------- validations ----------
   stopifnot(is.character(context) | is.null(context))
   stopifnot(is.vector(variable_list) && length(variable_list) >= 3)
   stopifnot(all(sapply(variable_list, is.character)))
 
-  # Generate pairs and permutations (as before)
+  # ---------- make all unordered pairs ----------
   pairs_df <- data.frame(var1 = character(), var2 = character())
-  for(i in 1:(length(variable_list)-1)) {
-    for(j in (i+1):length(variable_list)) {
+  for (i in 1:(length(variable_list) - 1)) {
+    for (j in (i + 1):length(variable_list)) {
       pairs_df <- rbind(pairs_df, data.frame(var1 = variable_list[[i]], var2 = variable_list[[j]]))
     }
   }
   n_pairs <- nrow(pairs_df)
+
+  # ---------- permutations ----------
   if (missing(n_perm)) {
     n_perm <- 2
     message("The n_perm argument was not specified. The function will proceed using two permutations of the variable pair order.")
@@ -82,99 +103,155 @@ elicitEdgeProb <- function(context,
   set.seed(seed)
   perms <- t(replicate(n_perm, sample(1:n_pairs, n_pairs, replace = FALSE), simplify = TRUE))
 
-  raw_LLM <- list()
-  logprobs_LLM <- list()
-  prob_relation_df <- NULL
+  # ---------- config ----------
+  # Use logprobs only if user asked for them AND model supports them
+  use_logprobs <- isTRUE(logprobs) && model_supports_logprobs(LLM_model)
 
+  raw_LLM <- vector("list", n_perm)
+  logprobs_LLM <- vector("list", n_perm)
+  mode_used_mat <- matrix("fallback", nrow = n_pairs, ncol = n_perm)  # default; overwrite to "logprobs" when used
+
+  # ---------- iterate permutations ----------
   for (perm_idx in 1:n_perm) {
     current_order <- perms[perm_idx, ]
     previous_decisions <- list()
-    raw_LLM_perm <- list()
-    logprobs_LLM_perm <- list()
+    raw_LLM_perm <- vector("list", n_pairs)
+    logprobs_LLM_perm <- vector("list", n_pairs)
 
     for (pair_order in 1:n_pairs) {
       i <- current_order[pair_order]
       var1 <- pairs_df[i, 1]
       var2 <- pairs_df[i, 2]
       remaining_vars <- setdiff(variable_list, c(var1, var2))
+
       prev_decisions_str <- if (length(previous_decisions) > 0) {
-        paste(sapply(previous_decisions, function(x) {
-          sprintf("'%s' & '%s': %s", x$var1, x$var2, x$decision)
-        }), collapse = "\n")
+        paste(
+          sapply(previous_decisions, function(x) {
+            sprintf("'%s' & '%s': %s", x$var1, x$var2, x$decision)
+          }),
+          collapse = "\n"
+        )
       } else {
         "No previous decisions"
       }
 
-      # New PROMPT: only 'I' or 'E' as output, but pass previous decisions/context
+      # User prompt (asks for only I/E)
       prompt <- paste0(
         if (!is.null(context)) paste0("Context: ", context, "\n") else "",
         "Previous decisions in this network:\n", prev_decisions_str, "\n",
         "Current pair: '", var1, "' & '", var2, "'\n",
         "Remaining variables: ", paste(remaining_vars, collapse = ", "), "\n",
         "Respond ONLY with 'I' (included) or 'E' (excluded). Do not write anything else."
-      )  # try giving the example here!
+      )
 
-      # specify the system prompt
-     if(!is.null(main_prompt)) {
-      system_prompt <- main_prompt
-     } else{
-      system_prompt <-"You are an expert in using graphical models to study psychological constructs. You will be asked to classify whether there is a conditional relationship between pairs of variables in a Markov random field grapical model, applied to psychological research. If a conditional association exists, it means that the variables remain related even after accounting for the relationships between the other variables in the network. However, if the other variables explain away the relation between the two variables, then an edge should be absent. Consider the example that the relation between ice cream sales and number of shark attacks dissapears when we take into account the outside temperature. You must use your vast prior knowledge of the relationships between the variables to make informed decisions. When presented with two variable names, you should evaluate whether or not there is an edge between those two variables in the graphical model (which reflects a conditional association) between them, considering all previous decisions and remaining variables.  If there is a conditional association between two variables, then the edge should be categorized as included (by outputting 'I'). If there is no conditional association, then the edge should be categorized as excluded (by outputting 'E'). Therefore, output should be either 'I' or 'E'! Do not include any additional explanation or other text Since you must make decisions about conditional associations, be sure to consider the remaining variables when making your decision."
-     }
-
-      if(display_progress) {
-        print(paste0("Processing permutation ", perm_idx, ", pair ", pair_order, "/", n_pairs, ": ", var1, " - ", var2))
+      # System prompt
+      system_prompt <- if (!is.null(main_prompt)) {
+        paste(main_prompt, collapse = " ")
+      } else {
+        "You are an expert in using graphical models to study psychological constructs. \
+You will classify whether there is a conditional relationship between pairs of variables in a Markov random field graphical model applied to psychological research. \
+If there is a conditional association (edge present), output 'I'. If there is no conditional association (edge absent), output 'E'. \
+Only output a single character: 'I' or 'E'. Consider remaining variables and previous decisions."
       }
 
-      # Call LLM
+      if (isTRUE(display_progress)) {
+        message(paste0("Processing permutation ", perm_idx, ", pair ", pair_order, "/", n_pairs, ": ", var1, " - ", var2))
+      }
+
+      # ---------- LLM call ----------
       LLM_output <- callLLM(
-        prompt = prompt,
-        LLM_model = LLM_model,
-        max_tokens = 1,
-        temperature = 0,
-        logprobs = TRUE,
-        raw_output = TRUE,
+        prompt        = prompt,
+        LLM_model     = LLM_model,
+        max_tokens    = 1,                 # callLLM handles GPT-5 specifics internally
+        temperature   = 0,
+        logprobs      = use_logprobs,      # user-controlled + model capability
+        raw_output    = TRUE,
         system_prompt = system_prompt,
-        update_key = update_key
+        update_key    = update_key
       )
       update_key <- FALSE
 
-      raw_LLM_perm[[pair_order]] <- c(prompt = prompt, system_prompt = system_prompt, LLM_output$raw_content)
-      logprobs_LLM_perm[[pair_order]] <- LLM_output$top5_tokens
+      # Store raw result (prefer LLM_output$output for text)
+      content_txt <- LLM_output$output %||% LLM_output$raw_content$content %||% ""
+      raw_LLM_perm[[pair_order]] <- c(
+        prompt        = prompt,
+        system_prompt = system_prompt,
+        LLM_model     = LLM_output$raw_content$LLM_model %||% LLM_model,
+        content       = content_txt,
+        finish_reason = LLM_output$raw_content$finish_reason %||% NA_character_,
+        prompt_tokens = LLM_output$raw_content$prompt_tokens %||% NA_integer_,
+        answer_tokens = LLM_output$raw_content$answer_tokens %||% NA_integer_,
+        total_tokens  = LLM_output$raw_content$total_tokens  %||% NA_integer_,
+        error         = LLM_output$raw_content$error %||% NA
+      )
 
-      # Store decision for chaining
-      decision <- parseDecision(LLM_output$raw_content$content)
-      previous_decisions[[pair_order]] <- list(var1 = var1, var2 = var2, decision = decision)
+      # Store logprobs only if available (chat/completions models)
+      if (use_logprobs && !is.null(LLM_output$top5_tokens)) {
+        logprobs_LLM_perm[[pair_order]] <- LLM_output$top5_tokens
+        mode_used_mat[i, perm_idx] <- "logprobs"
+      } else {
+        logprobs_LLM_perm[[pair_order]] <- NULL
+        mode_used_mat[i, perm_idx] <- "fallback"
+      }
+
+      # Chain decision for next prompts
+      decision_char <- extract_decision_char(content_txt)
+      previous_decisions[[pair_order]] <- list(var1 = var1, var2 = var2, decision = decision_char)
     }
 
-    raw_LLM[[perm_idx]] <- raw_LLM_perm
+    raw_LLM[[perm_idx]]      <- raw_LLM_perm
     logprobs_LLM[[perm_idx]] <- logprobs_LLM_perm
   }
 
-  # New unified processing: always use the FIRST token logprobs for all models ---
-  prob_matrix <- matrix(NA, nrow = n_pairs, ncol = n_perm)
-  valid_tokens <- c("i", "e")
+  # ---------- probabilities ----------
+  prob_matrix <- matrix(NA_real_, nrow = n_pairs, ncol = n_perm)
   n_default_05 <- 0
+
   for (perm_idx in 1:n_perm) {
     for (pair_order in 1:n_pairs) {
       pair_idx <- perms[perm_idx, pair_order]
-      first_token_data <- logprobs_LLM[[perm_idx]][[pair_order]][[1]]  # first token only
-      prob_i <- 0
-      prob_e <- 0
-      for (m in 1:nrow(first_token_data)) {
-        token <- trimws(tolower(first_token_data$top5_tokens[m]))
-        if (token == "i") prob_i <- prob_i + as.numeric(first_token_data$probability[m])
-        if (token == "e") prob_e <- prob_e + as.numeric(first_token_data$probability[m])
+
+      # Try to find first-token logprobs (if model supports and they exist)
+      first_token_df <- NULL
+      if (!is.null(logprobs_LLM[[perm_idx]]) &&
+          length(logprobs_LLM[[perm_idx]]) >= pair_order &&
+          !is.null(logprobs_LLM[[perm_idx]][[pair_order]]) &&
+          length(logprobs_LLM[[perm_idx]][[pair_order]]) > 0 &&
+          !is.null(logprobs_LLM[[perm_idx]][[pair_order]][[1]])) {
+        first_token_df <- logprobs_LLM[[perm_idx]][[pair_order]][[1]]
       }
-      if (prob_i + prob_e > 0) {
-        prob_matrix[pair_idx, perm_idx] <- prob_i / (prob_i + prob_e)
+
+      if (!is.null(first_token_df)) {
+        # Use logprobs to form P(I) / (P(I)+P(E))
+        prob_i <- 0; prob_e <- 0
+        for (m in 1:nrow(first_token_df)) {
+          token <- trimws(tolower(first_token_df$top5_tokens[m]))
+          if (token == "i") prob_i <- prob_i + as.numeric(first_token_df$probability[m])
+          if (token == "e") prob_e <- prob_e + as.numeric(first_token_df$probability[m])
+        }
+        if (prob_i + prob_e > 0) {
+          prob_matrix[pair_idx, perm_idx] <- prob_i / (prob_i + prob_e)
+        } else {
+          prob_matrix[pair_idx, perm_idx] <- 0.5; n_default_05 <- n_default_05 + 1
+        }
       } else {
-        prob_matrix[pair_idx, perm_idx] <- 0.5
-        n_default_05 <- n_default_05 + 1 # count how many times defaulted to 0.5
+        # Fallback: hard decision from text
+        temp_text <- raw_LLM[[perm_idx]][[pair_order]][["content"]] %||% ""
+        dchr <- tolower(substr(trimws(temp_text), 1, 1))
+        if (dchr == "i") {
+          prob_matrix[pair_idx, perm_idx] <- 1
+        } else if (dchr == "e") {
+          prob_matrix[pair_idx, perm_idx] <- 0
+        } else {
+          prob_matrix[pair_idx, perm_idx] <- 0.5
+          n_default_05 <- n_default_05 + 1
+        }
       }
     }
   }
 
-  print(paste0("Number of edges defaulted to 0.5 (neither 'I' nor 'E' found in first token's top5): ", n_default_05, " out of ", n_perm * n_pairs, " total."))
+  message(paste0("Number of edges defaulted to 0.5 (no usable signal): ",
+                 n_default_05, " out of ", n_perm * n_pairs, " total."))
 
   avg_probs <- rowMeans(prob_matrix, na.rm = TRUE)
   prob_relation_df <- data.frame(
@@ -184,75 +261,51 @@ elicitEdgeProb <- function(context,
     row.names = NULL
   )
 
-  # Prepare output
+  # ---------- flatten raw_LLM for output ----------
   output <- list()
-
-  # Flatten raw_LLM output
   tryCatch({
     flattened_df_raw_LLM <- data.frame(
       permutation = integer(),
-      pair_order = integer(),
-      pair_index = integer(),
+      pair_order  = integer(),
+      pair_index  = integer(),
       var1 = character(),
       var2 = character(),
       LLM_model = character(),
       prompt = character(),
       system_prompt = character(),
       content = character(),
+      mode_used = character(),
       finish_reason = character(),
       prompt_tokens = numeric(),
       answer_tokens = numeric(),
       total_tokens = numeric(),
       error = character(),
-      first_token_prob = numeric(),
       stringsAsFactors = FALSE
     )
 
     for (perm_idx in 1:length(raw_LLM)) {
-      # Extract the sequence of I/E decisions for this permutation
-      ie_sequence <- sapply(raw_LLM[[perm_idx]], function(x) {
-        substr(x$content, nchar(x$content), nchar(x$content))  # Gets last character
-      })
-
       for (pair_order in 1:length(raw_LLM[[perm_idx]])) {
         pair_idx <- perms[perm_idx, pair_order]
         temp <- raw_LLM[[perm_idx]][[pair_order]]
 
-        first_token_info <- if (!is.null(logprobs_LLM[[perm_idx]][[pair_order]]) &&
-                                length(logprobs_LLM[[perm_idx]][[pair_order]]) > 0) {
-          first_token_data <- logprobs_LLM[[perm_idx]][[pair_order]][[1]]
-          data.frame(
-            first_token_prob = as.numeric(first_token_data$probability[1]),
-            stringsAsFactors = FALSE
-          )
-        } else {
-          data.frame(
-            first_token_prob = NA_real_,
-            stringsAsFactors = FALSE
-          )
-        }
-
-
-        current_content <- temp$content
-
         flattened_df_raw_LLM <- rbind(
           flattened_df_raw_LLM,
           data.frame(
-            permutation = perm_idx,
-            pair_order = pair_order,
-            pair_index = pair_idx,
-            var1 = pairs_df[pair_idx, 1],
-            var2 = pairs_df[pair_idx, 2],
-            LLM_model = temp$LLM_model,
-            prompt = temp$prompt,
-            system_prompt = temp$system_prompt,
-            content = current_content,  # Modified to include sequence for last row
-            finish_reason = temp$finish_reason,
-            prompt_tokens = temp$prompt_tokens,
-            answer_tokens = temp$answer_tokens,
-            total_tokens = temp$total_tokens,
-            error = ifelse(is.null(temp$error), NA, temp$error),
-            first_token_prob = first_token_info$first_token_prob,
+            permutation   = perm_idx,
+            pair_order    = pair_order,
+            pair_index    = pair_idx,
+            var1          = pairs_df[pair_idx, 1],
+            var2          = pairs_df[pair_idx, 2],
+            LLM_model     = temp[["LLM_model"]] %||% LLM_model,
+            prompt        = temp[["prompt"]] %||% "",
+            system_prompt = temp[["system_prompt"]] %||% "",
+            content       = temp[["content"]] %||% "",
+            mode_used     = mode_used_mat[pair_idx, perm_idx],
+            finish_reason = temp[["finish_reason"]] %||% NA_character_,
+            prompt_tokens = as.numeric(temp[["prompt_tokens"]] %||% NA),
+            answer_tokens = as.numeric(temp[["answer_tokens"]] %||% NA),
+            total_tokens  = as.numeric(temp[["total_tokens"]] %||% NA),
+            error         = ifelse(is.null(temp[["error"]]), NA, temp[["error"]]),
             stringsAsFactors = FALSE
           )
         )
@@ -264,8 +317,16 @@ elicitEdgeProb <- function(context,
         "Only part of the output is returned.", sep = "\n")
   })
 
+  # ---------- diagnostics ----------
+  diag_tbl <- table(mode_used_mat)
+  output$diagnostics <- list(
+    mode_counts = as.list(diag_tbl),
+    defaults_0p5 = n_default_05
+  )
+
+  # ---------- assemble & return ----------
   output$relation_df <- prob_relation_df
-  print(paste0("Total of LLM prompts: ", n_perm * n_pairs))
+  message(paste0("Total of LLM prompts: ", n_perm * n_pairs))
   output$arguments <- list(
     context = context,
     variable_list = variable_list,
@@ -273,7 +334,9 @@ elicitEdgeProb <- function(context,
     update_key = update_key,
     n_perm = n_perm,
     seed = seed,
-    n_default_05 = n_default_05
+    n_default_05 = n_default_05,
+    logprobs_requested = isTRUE(logprobs),
+    logprobs_used = isTRUE(use_logprobs)
   )
   class(output) <- "elicitEdgeProb"
   return(output)

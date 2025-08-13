@@ -85,7 +85,7 @@ callLLM <- function(prompt = prompt,
                     update_key = update_key) {
 
   if (!(LLM_model %in% c("gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"))) {
-    stop("Only OpenAI models ('gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo') are supported in this version of the packgage.")
+    stop("Only OpenAI models ('gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo') are supported in this version of the package.")
   }
 
   api_key <- getApiKey("openai", update_key = update_key)

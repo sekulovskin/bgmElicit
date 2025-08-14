@@ -31,7 +31,6 @@ getLLMLogprobs <- function(raw_content,
   return(logprobs_dfs)
 }
 
-
 # LLM helper function
 getApiKey <- function(service_name, update_key = FALSE) {
   # Check if running on shinyapps.io
@@ -71,7 +70,7 @@ getApiKey <- function(service_name, update_key = FALSE) {
   return(keyring::key_get(service = service_name, username = "user"))
 }
 
-# ---------- helpers ----------
+#  v1 responses
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
 # Extract assistant text from /v1/responses (GPT-5); robust across shapes
@@ -102,10 +101,8 @@ getApiKey <- function(service_name, update_key = FALSE) {
   }
   NA_character_
 }
-# ---------- end helpers ----------
 
 # main function to call LLM
-
 callLLM <- function(
     prompt,
     LLM_model = "gpt-4o",
@@ -330,4 +327,9 @@ estimateBetaBin <- function(x, n, method = c("mle", "mom"), force_mom = FALSE) {
   return(list(mle = c("alpha" = alpha_mle, "beta" = beta_mle), mom = c("alpha" = alpha, "beta" = beta)))
 }
 
+
+# function to estimate the number of clusters
+
+
+# function for generating the output to be used for easybgm
 

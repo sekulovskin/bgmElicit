@@ -15,7 +15,7 @@
 #'   to be incorporated into the LLM prompt. Defaults to `NULL`.
 #' @param variable_list A character vector of variable names. Must contain at least three variables.
 #' @param LLM_model Character string indicating which LLM to use. Current options include:
-#'   `"gpt-4o"`, `"gpt-4-turbo"`, or `"gpt-3.5-turbo"`
+#'   `"gpt-4o"`, `"gpt-4-turbo"`,  `"gpt-3.5-turbo"`, `"gpt-5"`, `"gpt-5-mini"`, or `"gpt-5-nano"`
 #' @param update_key Logical. If `TRUE`, updates the API key used for the LLM call. Default is `FALSE`.
 #'   Only the first call will use the updated key. Default is `FALSE`.
 #' @param n_perm Integer or `NULL`. Number of random permutations of pair orders to evaluate.

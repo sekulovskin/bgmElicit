@@ -116,67 +116,7 @@ callLLM <- function(
     raw_output = TRUE,
     update_key = FALSE
 ) {
-  # ---------- helpers ----------
-  `%||%` <- function(x, y) if (is.null(x)) y else x
-
-  # Extract assistant text from Responses API shape
-  get_text_from_responses <- function(resp) {
-    # prefer aggregated 'text' if present
-    if (!is.null(resp$text) && !is.null(resp$text$format) && !is.null(resp$output)) {
-      # sometimes Responses includes a top-level text or format; still scan output
-      # fall through to 'output' scan below
-    }
-    if (!is.null(resp$output) && length(resp$output) > 0) {
-      # look for a message item with output_text
-      for (item in resp$output) {
-        if (is.list(item) && !is.null(item$type) && identical(item$type, "message")) {
-          if (!is.null(item$content) && length(item$content) > 0) {
-            for (c in item$content) {
-              if (!is.null(c$type) && identical(c$type, "output_text") && !is.null(c$text)) {
-                return(as.character(c$text))
-              }
-            }
-          }
-        }
-      }
-    }
-    # last resort: some variants put text in different places
-    if (!is.null(resp$content) && is.character(resp$content)) return(resp$content)
-    if (!is.null(resp$message) && is.character(resp$message)) return(resp$message)
-    ""
-  }
-
-  # Parse first-token top-k alternatives from Chat Completions into a data.frame
-  getLLMLogprobs <- function(raw_content, LLM_model) {
-    ch <- raw_content$choices[[1]]
-    if (is.null(ch$logprobs) || is.null(ch$logprobs$content) ||
-        length(ch$logprobs$content) < 1 ||
-        is.null(ch$logprobs$content[[1]]$top_logprobs)) {
-      return(NULL)
-    }
-    alts <- ch$logprobs$content[[1]]$top_logprobs
-    if (length(alts) == 0) return(NULL)
-
-    tok <- vapply(alts, function(x) x$token %||% "", character(1))
-    lp  <- vapply(alts, function(x) as.numeric(x$logprob %||% NA_real_), numeric(1))
-
-    # Clean spaces and common BPE markers so ' i', '▁i', 'Ġi' => 'i'
-    clean <- function(s) {
-      s <- gsub("^[\\s]+", "", s, perl = TRUE)
-      s <- gsub("^[▁Ġ]+", "", s, perl = TRUE)
-      tolower(trimws(s))
-    }
-    tok_clean <- vapply(tok, clean, character(1))
-
-    data.frame(
-      top5_tokens = tok_clean,
-      logprob     = lp,
-      probability = exp(lp),
-      stringsAsFactors = FALSE
-    )
-  }
-
-  # ---------- model routing ----------
+  # Allowed models
   allowed_models <- c(
     "gpt-5", "gpt-5-mini", "gpt-5-nano",
     "gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"
@@ -184,15 +124,16 @@ callLLM <- function(
   if (!LLM_model %in% allowed_models) {
     stop("Only the following models are supported: ", paste(allowed_models, collapse = ", "))
   }
-  is_gpt5 <- grepl("^gpt-5", LLM_model)
 
   api_key <- getApiKey("openai", update_key = isTRUE(update_key))
-  api_key <- trimws(api_key)
+  is_gpt5 <- grepl("^gpt-5", LLM_model)
 
-  # ---------- GPT-5 branch: /v1/responses (no logprobs) ----------
   if (is_gpt5) {
+    # ---------- GPT-5 via /v1/responses ----------
+    # Minimal & tenant-safe: model + input (no temperature/top_p/logprobs/max_output_tokens)
     endpoint <- "https://api.openai.com/v1/responses"
 
+    # Inline system prompt into input for simplicity/compatibility
     combined_input <- if (!is.null(system_prompt)) {
       paste0(system_prompt, "\n\n", prompt)
     } else {
@@ -202,12 +143,11 @@ callLLM <- function(
     request_body <- list(
       model = LLM_model,
       input = combined_input
-      # IMPORTANT: do not send temperature/top_p/max_output_tokens/logprobs for GPT-5
     )
 
-    req <- httr::RETRY(
+    request <- httr::RETRY(
       "POST", endpoint,
-      body = request_body,
+      body = request_body, # pass list; httr drops NULLs
       httr::add_headers(
         Authorization = paste("Bearer", api_key),
         `Content-Type` = "application/json"
@@ -217,12 +157,12 @@ callLLM <- function(
       httr::timeout(timeout_sec)
     )
 
-    status <- httr::status_code(req)
-    resp_text <- httr::content(req, as = "text", encoding = "UTF-8")
+    status <- httr::status_code(request)
+    resp_text <- httr::content(request, as = "text", encoding = "UTF-8")
     if (status >= 300) stop(paste("HTTP", status, "→", resp_text))
     resp <- jsonlite::fromJSON(resp_text, simplifyVector = FALSE)
 
-    output_text <- get_text_from_responses(resp)
+    output_text <- .get_text_from_responses(resp)
 
     if (raw_output) {
       return(list(
@@ -230,104 +170,93 @@ callLLM <- function(
           LLM_model     = resp$model %||% LLM_model,
           content       = output_text,
           finish_reason = NULL,
-          prompt_tokens = resp$usage$input_tokens    %||% NA_integer_,
-          answer_tokens = resp$usage$output_tokens   %||% NA_integer_,
-          total_tokens  = resp$usage$total_tokens    %||% NA_integer_,
-          error         = resp$error                 %||% NULL
+          prompt_tokens = resp$usage$input_tokens %||% NA_integer_,
+          answer_tokens = resp$usage$output_tokens %||% NA_integer_,
+          total_tokens  = resp$usage$total_tokens %||% NA_integer_,
+          error         = resp$error %||% NULL
         ),
-        # GPT-5 never returns logprobs
-        top5_tokens = NULL,
         output = output_text
       ))
     } else {
       return(output_text)
     }
-  }
 
-  # ---------- GPT-4/4o/4-turbo/3.5: /v1/chat/completions (supports logprobs) ----------
-  endpoint <- "https://api.openai.com/v1/chat/completions"
+  } else {
+    # ---------- GPT-4o/4-turbo/4/3.5 via /v1/chat/completions ----------
+    endpoint <- "https://api.openai.com/v1/chat/completions"
 
-  messages <- list()
-  if (!is.null(system_prompt)) {
-    messages <- append(messages, list(list(role = "system", content = system_prompt)))
-  }
-  messages <- append(messages, list(list(role = "user", content = prompt)))
-
-  request_body <- list(
-    model        = LLM_model,
-    messages     = messages,
-    temperature  = temperature,
-    top_p        = top_p,
-    max_tokens   = max_tokens,
-    logprobs     = isTRUE(logprobs),
-    top_logprobs = if (isTRUE(logprobs)) top_logprobs else NULL
-  )
-
-  req <- httr::RETRY(
-    "POST", endpoint,
-    body = jsonlite::toJSON(request_body, auto_unbox = TRUE, null = "null"),
-    httr::add_headers(
-      Authorization = paste("Bearer", api_key),
-      `Content-Type` = "application/json"
-    ),
-    encode = "raw",
-    times = 5,
-    httr::timeout(timeout_sec)
-  )
-
-  status <- httr::status_code(req)
-  resp_text <- httr::content(req, as = "text", encoding = "UTF-8")
-  if (status >= 300) stop(paste("HTTP", status, "→", resp_text))
-  resp <- jsonlite::fromJSON(resp_text, simplifyVector = FALSE)
-
-  output_text <- resp$choices[[1]]$message$content %||% ""
-
-  if (raw_output && isTRUE(logprobs)) {
-    top5_logprobs <- getLLMLogprobs(raw_content = resp, LLM_model = LLM_model)
-
-    # --- NORMALIZE: always list(data.frame) or NULL (never list(NULL) / double-list) ---
-    df <- NULL
-    if (is.data.frame(top5_logprobs)) {
-      df <- top5_logprobs
-    } else if (is.list(top5_logprobs) && length(top5_logprobs) == 1 &&
-               is.data.frame(top5_logprobs[[1]])) {
-      df <- top5_logprobs[[1]]  # unwrap accidental extra level
+    messages <- list()
+    if (!is.null(system_prompt)) {
+      messages <- append(messages, list(list(role = "system", content = system_prompt)))
     }
-    top5_tokens_norm <- if (!is.null(df) && nrow(df) > 0) list(df) else NULL
+    messages <- append(messages, list(list(role = "user", content = prompt)))
 
-    return(list(
-      raw_content = list(
-        LLM_model     = resp$model %||% LLM_model,
-        content       = output_text,
-        finish_reason = resp$choices[[1]]$finish_reason %||% NULL,
-        prompt_tokens = resp$usage$prompt_tokens     %||% NA_integer_,
-        answer_tokens = resp$usage$completion_tokens %||% NA_integer_,
-        total_tokens  = resp$usage$total_tokens      %||% NA_integer_,
-        error         = resp$error                   %||% NULL
+    request_body <- list(
+      model        = LLM_model,
+      messages     = messages,
+      temperature  = temperature,
+      top_p        = top_p,
+      max_tokens   = max_tokens,
+      logprobs     = isTRUE(logprobs),
+      top_logprobs = if (isTRUE(logprobs)) top_logprobs else NULL
+    )
+
+    request <- httr::RETRY(
+      "POST", endpoint,
+      body = jsonlite::toJSON(request_body, auto_unbox = TRUE, null = "null"),
+      httr::add_headers(
+        Authorization = paste("Bearer", api_key),
+        `Content-Type` = "application/json"
       ),
-      top5_tokens = top5_tokens_norm,
-      output = output_text
-    ))
-  }
+      encode = "raw",
+      times = 5,
+      httr::timeout(timeout_sec)
+    )
 
-  if (raw_output && !isTRUE(logprobs)) {
-    return(list(
-      raw_content = list(
-        LLM_model     = resp$model %||% LLM_model,
-        content       = output_text,
-        finish_reason = resp$choices[[1]]$finish_reason %||% NULL,
-        prompt_tokens = resp$usage$prompt_tokens     %||% NA_integer_,
-        answer_tokens = resp$usage$completion_tokens %||% NA_integer_,
-        total_tokens  = resp$usage$total_tokens      %||% NA_integer_,
-        error         = resp$error                   %||% NULL
-      ),
-      output = output_text
-    ))
-  }
+    status <- httr::status_code(request)
+    resp_text <- httr::content(request, as = "text", encoding = "UTF-8")
+    if (status >= 300) stop(paste("HTTP", status, "→", resp_text))
+    resp <- jsonlite::fromJSON(resp_text, simplifyVector = FALSE)
 
-  # raw_output = FALSE
-  output_text
+    output_text <- resp$choices[[1]]$message$content
+
+    if (raw_output && isTRUE(logprobs)) {
+      # Uses your existing chat/completions parser
+      top5_logprobs <- getLLMLogprobs(raw_content = resp, LLM_model = LLM_model)
+      return(list(
+        raw_content = list(
+          LLM_model     = resp$model %||% LLM_model,
+          content       = output_text,
+          finish_reason = resp$choices[[1]]$finish_reason %||% NULL,
+          prompt_tokens = resp$usage$prompt_tokens %||% NA_integer_,
+          answer_tokens = resp$usage$completion_tokens %||% NA_integer_,
+          total_tokens  = resp$usage$total_tokens %||% NA_integer_,
+          error         = resp$error %||% NULL
+        ),
+        top5_tokens = list(top5_logprobs),
+        output = output_text
+      ))
+    }
+
+    if (raw_output && !isTRUE(logprobs)) {
+      return(list(
+        raw_content = list(
+          LLM_model     = resp$model %||% LLM_model,
+          content       = output_text,
+          finish_reason = resp$choices[[1]]$finish_reason %||% NULL,
+          prompt_tokens = resp$usage$prompt_tokens %||% NA_integer_,
+          answer_tokens = resp$usage$completion_tokens %||% NA_integer_,
+          total_tokens  = resp$usage$total_tokens %||% NA_integer_,
+          error         = resp$error %||% NULL
+        ),
+        output = output_text
+      ))
+    }
+
+    return(output_text)
+  }
 }
+
 
 
 # Helper function to parse decision from LLM output

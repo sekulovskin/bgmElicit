@@ -1,4 +1,4 @@
-#' Community detection on an LLM inclusion-probability matrix (branch-only)
+#' Community detection on an LLM inclusion-probability matrix
 #'
 #' Uses the `inclusion_probability_matrix` from an LLM elicitation object to build a
 #' binary adjacency matrix (thresholded at `threshold`) and runs community detection twice:

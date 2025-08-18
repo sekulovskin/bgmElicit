@@ -2,7 +2,7 @@
 % Please edit documentation in R/sbmClusters.R
 \name{sbmClusters}
 \alias{sbmClusters}
-\title{Community detection on an LLM inclusion-probability matrix (branch-only)}
+\title{Community detection on an LLM inclusion-probability matrix}
 \usage{
 sbmClusters(
   llmobject,

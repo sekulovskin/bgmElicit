@@ -1,6 +1,5 @@
-#' Elicit Edge Inclusion Priors for Variable Pairs Using a LLM
-#' that takes into account the remaining variables
-#'
+#' Light Elicit Edge Inclusion Priors for Variable Pairs Using a LLM
+
 #'
 #' This function uses a large language model (LLM) to evaluate whether conditional
 #' associations (edges) exist between variable pairs in a Markov random Field graphical model. It optionally
@@ -22,12 +21,18 @@
 #' @param display_progress Logical. If `TRUE`, displays progress messages during processing. Default is `TRUE`.
 #' @param logprobs Logical. If `TRUE`, requests log probabilities from the LLM for the first token. Only available
 #' for models that support logprobs (e.g., `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`). Default is `TRUE`.
-#' # if LLM_model does not support logprobs, this argument is ignored.
+#' if LLM_model does not support logprobs, this argument is ignored. At this moment, OpenAI no longer provides
+#' log probabilities, therefore this argument is automatically set to `FALSE` for all models.
 #' @return A list of class `"elicitEdgeProbLite"` containing:
 #' \describe{
-#'   \item{`relation_df`}{A data frame with columns `var1`, `var2`, and `prob`, containing the estimated
+#'   \item{`relation_df`}{A data frame with columns `var1`, `var2`, and `prob`, containing the elicited
 #'     prior probabilities of conditional associations between variable pairs.}
 #'   \item{`raw_LLM`}{A data frame of all raw LLM prompt-response data and token probabilities.}
+#'   \item{`diagnostics`}{A list with counts of how many times each mode was used.}
+#'   \item{`inclusion_probability_matrix`}{A symmetric matrix of the elicited edge inclusion probabilities
+#'   ready to be used for the Nernoulli prior in the `easybgm` package. Note probabilities that were
+#'   elicited to be 1 or 0 are squashed to 0.99 and 0.01, respectively, to avoid exact 0/1 probabilities,
+#'   since this is not supported in the BGM estimation packages.
 #'   \item{`arguments`}{A list of the function input arguments for reproducibility.}
 #' }
 #'
@@ -62,7 +67,7 @@ elicitEdgeProbLite <- function(
     seed = 123,
     main_prompt = NULL,
     display_progress = TRUE,
-    logprobs = TRUE
+    logprobs = FALSE
 ) {
   # ---------- helpers ----------
   `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -76,6 +81,22 @@ elicitEdgeProbLite <- function(
     if (!nzchar(ch)) return("?")
     ch <- tolower(ch)
     if (ch %in% c("i", "e")) ch else "?"
+  }
+
+  # safely fetch the first-token logprobs data.frame if present & non-empty
+  safe_first_token_df <- function(topk_list) {
+    if (is.null(topk_list) || !is.list(topk_list) || length(topk_list) < 1) return(NULL)
+    ft <- topk_list[[1]]
+    if (is.null(ft) || !is.data.frame(ft) || NROW(ft) == 0) return(NULL)
+    ft
+  }
+
+  # NEW: safe accessor to avoid [[idx]] on NULL/short lists
+  get_topk_for <- function(lst, idx) {
+    if (is.null(lst)) return(NULL)
+    if (!is.list(lst)) return(NULL)
+    if (length(lst) < idx) return(NULL)
+    lst[[idx]]
   }
 
   # ---------- validation ----------
@@ -187,8 +208,16 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables."
         error         = LLM_output$raw_content$error %||% NA
       )
 
-      if (use_logprobs && !is.null(LLM_output$top5_tokens)) {
-        logprobs_LLM_pair[[perm]] <- LLM_output$top5_tokens
+      # Store logprobs only if available AND non-empty
+      has_logprobs_df <-
+        isTRUE(use_logprobs) &&
+        !is.null(LLM_output$top5_tokens) &&
+        length(LLM_output$top5_tokens) >= 1 &&
+        is.data.frame(LLM_output$top5_tokens[[1]]) &&
+        NROW(LLM_output$top5_tokens[[1]]) > 0
+
+      if (has_logprobs_df) {
+        logprobs_LLM_pair[[perm]] <- LLM_output$top5_tokens      # list(data.frame)
         mode_used_mat[i, perm] <- "logprobs"
       } else {
         logprobs_LLM_pair[[perm]] <- NULL
@@ -207,19 +236,13 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables."
   for (i in 1:n_pairs) {
     for (perm in 1:n_perm) {
 
-      # Safely get first-token logprobs df if present
-      first_token_df <- NULL
-      if (!is.null(logprobs_LLM[[i]]) &&
-          length(logprobs_LLM[[i]]) >= perm &&
-          !is.null(logprobs_LLM[[i]][[perm]]) &&
-          length(logprobs_LLM[[i]][[perm]]) > 0 &&
-          !is.null(logprobs_LLM[[i]][[perm]][[1]])) {
-        first_token_df <- logprobs_LLM[[i]][[perm]][[1]]
-      }
+      # SAFE: never index [[perm]] on a NULL/short list
+      topk_list_for_call <- get_topk_for(logprobs_LLM[[i]], perm)
+      first_token_df <- safe_first_token_df(topk_list_for_call)
 
       if (!is.null(first_token_df)) {
         prob_i <- 0; prob_e <- 0
-        for (m in 1:nrow(first_token_df)) {
+        for (m in seq_len(nrow(first_token_df))) {
           token <- trimws(tolower(first_token_df$top5_tokens[m]))
           if (token == "i") prob_i <- prob_i + as.numeric(first_token_df$probability[m])
           if (token == "e") prob_e <- prob_e + as.numeric(first_token_df$probability[m])
@@ -328,6 +351,22 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables."
     logprobs_requested = isTRUE(logprobs),
     logprobs_used = isTRUE(use_logprobs)
   )
+
+  # -------- symmetric p x p inclusion-prob matrix ----------
+  p <- length(variable_list)
+  prob_matrix_sym <- matrix(0, nrow = p, ncol = p,
+                            dimnames = list(variable_list, variable_list))
+  for (i in 1:n_pairs) {
+    v1 <- pairs_df[i, 1]; v2 <- pairs_df[i, 2]
+    val <- avg_probs[i]
+    prob_matrix_sym[v1, v2] <- val
+    prob_matrix_sym[v2, v1] <- val
+  }
+  prob_matrix_sym[prob_matrix_sym == 1] <- 0.99
+  prob_matrix_sym[prob_matrix_sym == 0] <- 0.01
+  diag(prob_matrix_sym) <- 0
+  output$inclusion_probability_matrix <- prob_matrix_sym
+
   class(output) <- "elicitEdgeProbLite"
   return(output)
 }

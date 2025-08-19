@@ -1,8 +1,10 @@
-#' Estimate Beta-Binomial Parameters from LLM Output
+#' Estimate Beta-Bernoulli Parameters from LLM Output
 #'
-#' This function computes the parameters of a Beta-Binomial distribution from the edge
-#' inclusion outputs of an LLM-based prior elicitation object. The estimated parameters
-#' describe the distribution of edge counts (network density) across permutations or repetitions.
+#' This function estimates the parameters of a Beta-Bernoulli distribution from the edge
+#' inclusion probabilities elicited using the functions `"elicitEdgeProb"` or `"elicitEdgeProbLite"`.
+#' These parameters help in describing the prior probability for the network density.
+#' The elicited parameters can be used for specifying the shape parameters
+#' of the Beta-Bernoulli structure prior in the package \pkg{easybgm}.
 #'
 #' @param llmobject An object of class `"elicitEdgeProb"` or `"elicitEdgeProbLite"`,
 #' "` as returned by LLM-based prior elicitation functions.
@@ -11,17 +13,14 @@
 #' @param force_mom Logical. If `TRUE`, forces method of moments estimation even if `"mle"` is requested.
 #'   Default is `FALSE`.
 #'
-#' @return A list containing the estimated `alpha` and `beta` parameters of the Beta-Binomial distribution.
+#' @return A list containing the estimated `alpha` and `beta` parameters of the Beta-Bernoulli distribution.
 #'
 #' @details
 #' The function extracts the number of included edges (`"I"`) for each permutation or repetition
-#' from the LLM output and fits a Beta-Binomial distribution to these counts. This gives a probabilistic
-#' description of edge inclusion uncertainty across network realizations.
-#'
-#' For `` objects, edge inclusion is determined from
-#' the raw content per iteration. For `llmPriorElicitRelations` objects, edge inclusion is extracted
-#' from the full I/E sequence in the final output for each permutation.
-#'
+#' from the LLM output and fits a Beta-Bernoulli distribution to these counts. It estimates the
+#' shape parameters `alpha` and `beta` based on the specified method. The available estimation methods are:
+#' - `"mle"`: Maximum likelihood estimation.
+#' - `"mom"`: Method of moments estimation.
 #' A warning is issued if fewer than 10 permutations are detected, as parameter estimation
 #' may be unreliable in such cases.
 #'
@@ -39,14 +38,11 @@
 #' @import dplyr
 #' @import stringr
 #'
+#' @seealso \link[=easybgm-package]{\pkg{easybgm}}
 #' @export
-#' @name betaBinParameters
-# Calculate the beta-binomial parameters for the llm object
-library(dplyr)
-library(stringr)  # we will have to think about these dependencies when making
-# this a package
+# Calculate the beta-Bernoulli parameters for the llm object
 
-betaBinParameters <- function(llmobject,
+betaBernParameters <- function(llmobject,
                               method = "mle",
                               force_mom = FALSE) {
 
@@ -72,7 +68,7 @@ betaBinParameters <- function(llmobject,
    stop("The input object must be of class 'elicitEdgeProb' or 'elicitEdgeProbLite'.")
   }
 
-  # estimate Beta-Binomial parameters
+  # estimate Beta-Bernoulli parameters
   bb <- estimate_beta_binomial(x = x, n = n, method = method, force_mom = force_mom)
 
   return(bb)

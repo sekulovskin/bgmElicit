@@ -2,7 +2,7 @@
 % Please edit documentation in R/sbmClusters.R
 \name{sbmClusters}
 \alias{sbmClusters}
-\title{Community detection on an LLM inclusion-probability matrix}
+\title{Detect Communities from an LLM-Derived Inclusion-Probability Matrix}
 \usage{
 sbmClusters(
   llmobject,
@@ -18,40 +18,87 @@ sbmClusters(
 )
 }
 \arguments{
-\item{llmobject}{An object of class "elicitEdgeProb" or "elicitEdgeProbLite",
-containing \code{inclusion_probability_matrix} (symmetric, values in \link{0,1}, zero diagonal).}
+\item{llmobject}{An object of class \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}
+containing a valid \code{inclusion_probability_matrix} (numeric, symmetric, values in \code{[0,1]},
+zero diagonal).}
 
-\item{algorithm}{Community detection algorithm: one of
-"louvain", "walktrap", "fast_greedy", "infomap", "label_prop", "edge_betweenness".}
+\item{algorithm}{Community-detection algorithm. One of
+\code{c("louvain","walktrap","fast_greedy","infomap","label_prop","edge_betweenness")}.}
 
-\item{threshold}{Numeric threshold for binarizing the matrix (default 0.5).}
+\item{threshold}{Numeric threshold for binarizing the matrix. Default is \code{0.5}.}
 
-\item{tol}{Numerical tolerance for equality to the threshold (default 1e-12).}
+\item{tol}{Numerical tolerance for equality to the threshold. Default is \code{1e-12}.}
 
-\item{return_membership}{If TRUE, return node→cluster membership (default TRUE).}
+\item{return_membership}{Logical; if \code{TRUE}, return node-to-cluster membership.
+Default is \code{TRUE}.}
 
-\item{remove_isolates}{If TRUE, drop isolated vertices before clustering and return
-their membership as NA in the original order (default FALSE).}
+\item{remove_isolates}{Logical; if \code{TRUE}, drop isolated vertices before clustering and set their
+membership to \code{NA}. Default is \code{FALSE}.}
 
-\item{seed}{Optional integer for reproducibility (affects e.g. Infomap).}
+\item{seed}{Optional integer to set the random seed for algorithms with stochastic components (e.g., Infomap).}
 
-\item{walktrap_steps}{Steps for Walktrap (default 4).}
+\item{walktrap_steps}{Integer number of steps for Walktrap. Default is \code{4}.}
 
-\item{infomap_trials}{Number of trials for Infomap (default 10).}
+\item{infomap_trials}{Integer number of trials for Infomap. Default is \code{10}.}
 }
 \value{
-A list with:
-\itemize{
-\item algorithm, threshold, ties_present
-\item results_ties0 (k, membership, modularity)
-\item results_ties1 (k, membership, modularity)
-\item different_number_of_clusters (logical)
-\item note (character)
+A list with components:
+\describe{
+\item{algorithm}{The algorithm used.}
+\item{elicited_no_clusters}{Estimated number of clusters when the two tie resolutions agree;
+otherwise \code{NA}.}
+\item{details}{A list with details:
+\describe{
+\item{threshold}{Threshold used for binarization.}
+\item{ties_present}{Logical; whether any entries equaled the threshold (within \code{tol}).}
+\item{tie_disagreement}{Logical; whether ties->0 and ties->1 produced different \eqn{k}.}
+\item{results_ties0}{List with \code{k}, \code{membership}, and \code{modularity} for ties->0.}
+\item{results_ties1}{List with \code{k}, \code{membership}, and \code{modularity} for ties->1.}
+\item{note}{Human-readable note describing the tie resolution.}
+\item{options}{Echo of key options (\code{tol}, \code{remove_isolates}, \code{return_membership},
+\code{seed}, \code{walktrap_steps}, \code{infomap_trials}).}
+}}
 }
 }
 \description{
-Uses the \code{inclusion_probability_matrix} from an LLM elicitation object to build a
-binary adjacency matrix (thresholded at \code{threshold}) and runs community detection twice:
-(i) with ties (== threshold) set to 0 and (ii) with ties set to 1.
-Reports whether the number of clusters differs between the two tie resolutions.
+This function estimates the number of clusters (communutues) in the network from the edge
+inclusion probabilities elicited using the functions \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}.
+The function uses the \code{inclusion_probability_matrix} stored in an object of class
+\code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"} to construct a binary
+adjacency matrix (thresholded at \code{threshold}) and runs community detection algorithm.
+To assess sensitivity to ties (values exactly at the threshold of 0.5), the procedure
+is executed twice: once with ties treated as 0 and once with ties treated as 1.
+The elicited number of cluster can be used for specifying the rate parameter
+of the Poisson structure prior for the Stochastic Block Model prior in the package \pkg{easybgm}.
+This rate parameter denotes the expected number of clusters.
+}
+\details{
+Binarization rule: entries strictly greater than \code{threshold + tol} are set to 1;
+entries strictly less than \code{threshold} are set to 0; values within \code{tol} of
+\code{threshold} are considered ties and are resolved in two separate runs (ties->0 and ties->1).
+Optionally, isolated vertices (degree 0) are removed prior to clustering and their membership is
+returned as \code{NA} in the original node order. If the elicitation object was generated from
+only a small number of permutations (e.g., < 10), cluster estimates may be unstable.
+
+Supported community detection algorithms: \code{"louvain"}, \code{"walktrap"}, \code{"fast_greedy"},
+\code{"infomap"}, \code{"label_prop"}, \code{"edge_betweenness"}.
+}
+\examples{
+\dontrun{
+llm_out <- llmPriorElicitSimple(
+  context = "Exploring cognitive symptoms and mood in depression",
+  variable_list = c("Concentration", "Sadness", "Sleep"),
+  n_rep = 3
+)
+cl <- sbmClusters(
+  llmobject = llm_out,
+  algorithm = "louvain",
+  threshold = 0.5
+)
+cl$elicited_no_clusters
+}
+
+}
+\seealso{
+\link[=easybgm-package]{\pkg{easybgm}}, \pkg{igraph}
 }

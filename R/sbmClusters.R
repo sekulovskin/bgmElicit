@@ -1,34 +1,81 @@
-#' Community detection on an LLM inclusion-probability matrix
+#' Detect Communities from an LLM-Derived Inclusion-Probability Matrix
 #'
-#' Uses the `inclusion_probability_matrix` from an LLM elicitation object to build a
-#' binary adjacency matrix (thresholded at `threshold`) and runs community detection twice:
-#'   (i) with ties (== threshold) set to 0 and (ii) with ties set to 1.
-#' Reports whether the number of clusters differs between the two tie resolutions.
+#' This function estimates the number of clusters (communutues) in the network from the edge
+#' inclusion probabilities elicited using the functions `"elicitEdgeProb"` or `"elicitEdgeProbLite"`.
+#' The function uses the \code{inclusion_probability_matrix} stored in an object of class
+#' \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"} to construct a binary
+#' adjacency matrix (thresholded at \code{threshold}) and runs community detection algorithm.
+#' To assess sensitivity to ties (values exactly at the threshold of 0.5), the procedure
+#' is executed twice: once with ties treated as 0 and once with ties treated as 1.
+#' The elicited number of cluster can be used for specifying the rate parameter
+#' of the Poisson structure prior for the Stochastic Block Model prior in the package \pkg{easybgm}.
+#' This rate parameter denotes the expected number of clusters.
 #'
-#' @param llmobject An object of class "elicitEdgeProb" or "elicitEdgeProbLite",
-#'   containing `inclusion_probability_matrix` (symmetric, values in [0,1], zero diagonal).
-#' @param algorithm Community detection algorithm: one of
-#'   "louvain", "walktrap", "fast_greedy", "infomap", "label_prop", "edge_betweenness".
-#' @param threshold Numeric threshold for binarizing the matrix (default 0.5).
-#' @param tol Numerical tolerance for equality to the threshold (default 1e-12).
-#' @param return_membership If TRUE, return node→cluster membership (default TRUE).
-#' @param remove_isolates If TRUE, drop isolated vertices before clustering and return
-#'   their membership as NA in the original order (default FALSE).
-#' @param seed Optional integer for reproducibility (affects e.g. Infomap).
-#' @param walktrap_steps Steps for Walktrap (default 4).
-#' @param infomap_trials Number of trials for Infomap (default 10).
+#' @details
+#' Binarization rule: entries strictly greater than \code{threshold + tol} are set to 1;
+#' entries strictly less than \code{threshold} are set to 0; values within \code{tol} of
+#' \code{threshold} are considered ties and are resolved in two separate runs (ties->0 and ties->1).
+#' Optionally, isolated vertices (degree 0) are removed prior to clustering and their membership is
+#' returned as \code{NA} in the original node order. If the elicitation object was generated from
+#' only a small number of permutations (e.g., < 10), cluster estimates may be unstable.
 #'
-#' @return A list with:
-#'   - algorithm, threshold, ties_present
-#'   - results_ties0 (k, membership, modularity)
-#'   - results_ties1 (k, membership, modularity)
-#'   - different_number_of_clusters (logical)
-#'   - note (character)
+#' Supported community detection algorithms: \code{"louvain"}, \code{"walktrap"}, \code{"fast_greedy"},
+#' \code{"infomap"}, \code{"label_prop"}, \code{"edge_betweenness"}.
+#'
+#' @param llmobject An object of class \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}
+#'   containing a valid \code{inclusion_probability_matrix} (numeric, symmetric, values in \code{[0,1]},
+#'   zero diagonal).
+#' @param algorithm Community-detection algorithm. One of
+#'   \code{c("louvain","walktrap","fast_greedy","infomap","label_prop","edge_betweenness")}.
+#' @param threshold Numeric threshold for binarizing the matrix. Default is \code{0.5}.
+#' @param tol Numerical tolerance for equality to the threshold. Default is \code{1e-12}.
+#' @param return_membership Logical; if \code{TRUE}, return node-to-cluster membership.
+#'   Default is \code{TRUE}.
+#' @param remove_isolates Logical; if \code{TRUE}, drop isolated vertices before clustering and set their
+#'   membership to \code{NA}. Default is \code{FALSE}.
+#' @param seed Optional integer to set the random seed for algorithms with stochastic components (e.g., Infomap).
+#' @param walktrap_steps Integer number of steps for Walktrap. Default is \code{4}.
+#' @param infomap_trials Integer number of trials for Infomap. Default is \code{10}.
+#'
+#' @return A list with components:
+#' \describe{
+#'   \item{algorithm}{The algorithm used.}
+#'   \item{elicited_no_clusters}{Estimated number of clusters when the two tie resolutions agree;
+#'     otherwise \code{NA}.}
+#'   \item{details}{A list with details:
+#'     \describe{
+#'       \item{threshold}{Threshold used for binarization.}
+#'       \item{ties_present}{Logical; whether any entries equaled the threshold (within \code{tol}).}
+#'       \item{tie_disagreement}{Logical; whether ties->0 and ties->1 produced different \eqn{k}.}
+#'       \item{results_ties0}{List with \code{k}, \code{membership}, and \code{modularity} for ties->0.}
+#'       \item{results_ties1}{List with \code{k}, \code{membership}, and \code{modularity} for ties->1.}
+#'       \item{note}{Human-readable note describing the tie resolution.}
+#'       \item{options}{Echo of key options (\code{tol}, \code{remove_isolates}, \code{return_membership},
+#'         \code{seed}, \code{walktrap_steps}, \code{infomap_trials}).}
+#'     }}
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' llm_out <- llmPriorElicitSimple(
+#'   context = "Exploring cognitive symptoms and mood in depression",
+#'   variable_list = c("Concentration", "Sadness", "Sleep"),
+#'   n_rep = 3
+#' )
+#' cl <- sbmClusters(
+#'   llmobject = llm_out,
+#'   algorithm = "louvain",
+#'   threshold = 0.5
+#' )
+#' cl$elicited_no_clusters
+#' }
 #'
 #' @importFrom igraph graph_from_adjacency_matrix cluster_louvain cluster_walktrap
 #'   cluster_fast_greedy cluster_infomap cluster_label_prop cluster_edge_betweenness
 #'   degree delete_vertices vcount membership modularity components
-#'
+#' @seealso \link[=easybgm-package]{\pkg{easybgm}}, \pkg{igraph}
+#' @export
+
 sbmClusters <- function(
     llmobject,
     algorithm = c("louvain", "walktrap", "fast_greedy",
@@ -55,19 +102,6 @@ sbmClusters <- function(
   }
 
   mat <- llmobject$inclusion_probability_matrix
-
-  if (!is.matrix(mat) || !is.numeric(mat))
-    stop("`inclusion_probability_matrix` must be a numeric matrix.")
-  if (nrow(mat) != ncol(mat))
-    stop("`inclusion_probability_matrix` must be square.")
-  if (max(abs(mat - t(mat))) > 1e-8)
-    stop("`inclusion_probability_matrix` must be symmetric (within tolerance).")
-  if (any(!is.finite(mat)))
-    stop("`inclusion_probability_matrix` contains non-finite values.")
-  if (any(mat < -1e-12 | mat > 1 + 1e-12))
-    stop("`inclusion_probability_matrix` must have values in [0,1].")
-  if (any(abs(diag(mat)) > 1e-12))
-    stop("Diagonal of `inclusion_probability_matrix` must be all zeros.")
 
   # Optional: warn if few permutations are present
   if (!is.null(llmobject$raw_LLM) && !is.null(llmobject$raw_LLM$permutation)) {

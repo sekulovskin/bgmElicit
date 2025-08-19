@@ -1,6 +1,7 @@
 # Utility functions
-# Some of these functions are obtained from the theoraizer package
-# https://github.com/MeikeWaaijers/theoraizer
+
+# Some of these functions are adapted from the theoraizer package
+# credits: https://github.com/MeikeWaaijers/theoraizer
 
 # logprob helper function
 getLLMLogprobs <- function(raw_content,
@@ -356,12 +357,3 @@ estimate_beta_binomial <- function(x, n, method = c("mle", "mom"), force_mom = F
   }
 
 }
-
-# function for generating the matrix of probabilities to be directly used in easybgm
-
-
-
-
-
-
-

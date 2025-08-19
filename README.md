@@ -7,7 +7,7 @@ probabilities using Large Language Models (LLMs) for analyzing Markov random
 field graphical models within the Bayesian graphical modeling (BGMs) framework. 
 Currently the package supports the models provided by OpenAI. The elicited
 prior can then be used in the **[`bgms`](https://cran.r-project.org/web/packages/bgms/index.html)**,
-**[`BDgraph`](http://cran.r-project.org/web/packages/BDgraph/index.html)** and**[`easybgm`](https://cran.r-project.org/web/packages/easybgm/index.html)**
+**[`BDgraph`](http://cran.r-project.org/web/packages/BDgraph/index.html)** and **[`easybgm`](https://cran.r-project.org/web/packages/easybgm/index.html)**
 R packages for Bayesian graphical modeling.
 
 The package interacts with the LLM to elicit edge inclusion probabilities under the independent Bernoulli prior on the network structure. 

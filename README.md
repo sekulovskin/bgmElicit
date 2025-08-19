@@ -2,8 +2,6 @@
 
 NOTE: This package is still in development and a paper is in preparation.
 
-NOTE: This package is still in development and a paper is in preparation.
-
 The package `llmBgmElicit` provides tools to elicit prior edge inclusion probabilities 
 using Large Language Models (LLMs) for analyzing Markov random field graphical models 
 within the Bayesian graphical modeling (BGM) framework. Currently, the package supports

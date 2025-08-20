@@ -191,7 +191,7 @@ elicitEdgeProb <- function(context,
         "You are an expert in using graphical models to study psychological constructs. \
 You will classify whether there is a conditional relationship between pairs of variables in a Markov random field graphical model applied to psychological research. \
 If there is a conditional association (edge present), output 'I'. If there is no conditional association (edge absent), output 'E'. \
-Only output a single character: 'I' or 'E'. Consider remaining variables and previous decisions."
+Only output a single character: 'I' or 'E'. Consider the remaining variables and previous decisions."
       }
 
       if (isTRUE(display_progress)) {

@@ -69,7 +69,7 @@ adjacency matrix (thresholded at \code{threshold}) and runs community detection 
 To assess sensitivity to ties (values exactly at the threshold of 0.5), the procedure
 is executed twice: once with ties treated as 0 and once with ties treated as 1.
 The elicited number of cluster can be used for specifying the rate parameter
-of the Poisson structure prior for the Stochastic Block Model prior in the package \pkg{easybgm}.
+of the Poisson structure prior for the Stochastic Block Model prior in the package \link[easybgm:easybgm]{easybgm}.
 This rate parameter denotes the expected number of clusters.
 }
 \details{
@@ -100,5 +100,5 @@ cl$elicited_no_clusters
 
 }
 \seealso{
-\link[=easybgm-package]{\pkg{easybgm}}, \pkg{igraph}
+\link[easybgm:easybgm]{easybgm}, \link[igraph:igraph]{igraph}
 }

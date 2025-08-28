@@ -160,7 +160,7 @@ callLLM <- function(
 
     status <- httr::status_code(request)
     resp_text <- httr::content(request, as = "text", encoding = "UTF-8")
-    if (status >= 300) stop(paste("HTTP", status, "→", resp_text))
+    if (status >= 300) stop(paste("HTTP", status, "->", resp_text))
     resp <- jsonlite::fromJSON(resp_text, simplifyVector = FALSE)
 
     output_text <- .get_text_from_responses(resp)
@@ -216,7 +216,7 @@ callLLM <- function(
 
     status <- httr::status_code(request)
     resp_text <- httr::content(request, as = "text", encoding = "UTF-8")
-    if (status >= 300) stop(paste("HTTP", status, "→", resp_text))
+    if (status >= 300) stop(paste("HTTP", status, "->", resp_text))
     resp <- jsonlite::fromJSON(resp_text, simplifyVector = FALSE)
 
     output_text <- resp$choices[[1]]$message$content

@@ -8,7 +8,7 @@
 #' To assess sensitivity to ties (values exactly at the threshold of 0.5), the procedure
 #' is executed twice: once with ties treated as 0 and once with ties treated as 1.
 #' The elicited number of cluster can be used for specifying the rate parameter
-#' of the Poisson structure prior for the Stochastic Block Model prior in the package \pkg{easybgm}.
+#' of the Poisson structure prior for the Stochastic Block Model prior in the package \link[easybgm:easybgm]{easybgm}.
 #' This rate parameter denotes the expected number of clusters.
 #'
 #' @details
@@ -73,7 +73,7 @@
 #' @importFrom igraph graph_from_adjacency_matrix cluster_louvain cluster_walktrap
 #'   cluster_fast_greedy cluster_infomap cluster_label_prop cluster_edge_betweenness
 #'   degree delete_vertices vcount membership modularity components
-#' @seealso \link[=easybgm-package]{\pkg{easybgm}}, \pkg{igraph}
+#' @seealso \link[easybgm:easybgm]{easybgm}, \link[igraph:igraph]{igraph}
 #' @export
 
 sbmClusters <- function(
@@ -184,7 +184,7 @@ sbmClusters <- function(
          modularity = as.numeric(mod))
   }
 
-  # ---- Branch: ties→0 and ties→1 (if no ties, both identical) ----
+  # ---- Branch: ties -> 0 and ties -> 1 (if no ties, both identical) ----
   adj0 <- make_adj(0L)
   adj1 <- make_adj(1L)
 
@@ -196,7 +196,7 @@ sbmClusters <- function(
     res0 <- run_algo(adj0)
     res1 <- run_algo(adj1)
     note <- sprintf(
-      "Resolved ties at %.3f in two ways: ties→0 (k=%d) and ties→1 (k=%d).",
+      "Resolved ties at %.3f in two ways: ties -> 0 (k=%d) and ties -> 1 (k=%d).",
       threshold, res0$k, res1$k
     )
   }

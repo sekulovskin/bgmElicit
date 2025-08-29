@@ -41,7 +41,7 @@
 #' @param update_key Logical; if `TRUE`, refreshes the API key prior to the LLM
 #'   call. Only the first call uses the updated key. Default is `FALSE`.
 #' @param n_perm Integer or `NULL`. Number of random permutations of pair order
-#'   to evaluate. If `NULL`, two permutations are used by default. Maximum is
+#'   to evaluate. If `NULL`, five permutations are used by default. Maximum is
 #'   `50`.
 #' @param seed Integer random seed for reproducibility of permutations.
 #'   Default is `123`.
@@ -84,7 +84,7 @@
 elicitEdgeProbLite <- function(
     context,
     variable_list,
-    LLM_model = "gpt-4",
+    LLM_model = "gpt-5",
     update_key = FALSE,
     n_perm = NULL,
     seed = 123,
@@ -138,8 +138,8 @@ elicitEdgeProbLite <- function(
 
   # ---------- permutations count ----------
   if (missing(n_perm)) {
-    n_perm <- 2
-    message("The n_perm argument was not specified. The function will proceed using two permutations of the remaining variables.")
+    n_perm <- 5
+    message("The n_perm argument was not specified. The function will proceed using five permutations of the remaining variables.")
   }
   if (!missing(n_perm) && n_perm == 0) stop("n_perm cannot be zero.")
   if (n_perm > 50) stop("Requested `n_perm` (", n_perm, ") exceeds maximum possible permutations which is set to 50.")

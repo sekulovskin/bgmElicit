@@ -40,7 +40,7 @@
 #' @param update_key Logical; if `TRUE`, refreshes the API key prior to the LLM
 #'   call. Only the first call uses the updated key. Default is `FALSE`.
 #' @param n_perm Integer or `NULL`. Number of random permutations of pair order
-#'   to evaluate. If `NULL`, two permutations are used by default. Maximum is
+#'   to evaluate. If `NULL`, five permutations are used by default. Maximum is
 #'   `50`.
 #' @param seed Integer random seed for reproducibility of permutations.
 #'   Default is `123`.
@@ -82,7 +82,7 @@
 
 elicitEdgeProb <- function(context,
                            variable_list,
-                           LLM_model = "gpt-4",
+                           LLM_model = "gpt-5",
                            update_key = FALSE,
                            n_perm = NULL,
                            seed = 123,
@@ -135,8 +135,8 @@ elicitEdgeProb <- function(context,
 
   # ---------- permutations ----------
   if (missing(n_perm)) {
-    n_perm <- 2
-    message("The n_perm argument was not specified. The function will proceed using two permutations of the variable pair order.")
+    n_perm <- 5
+    message("The n_perm argument was not specified. The function will proceed using five permutations of the variable pair order.")
   }
   if (!missing(n_perm) && n_perm == 0) stop("n_perm cannot be zero.")
   if (n_perm > 50) stop("Requested `n_perm` (", n_perm, ") exceeds maximum possible permutations which is set to 50.")
@@ -195,7 +195,7 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables and
       }
 
       if (isTRUE(display_progress)) {
-        message(paste0("Processing permutation ", perm_idx, ", pair ", pair_order, "/", n_pairs, ": ", var1, " - ", var2))
+        message(paste0("Processing permutation ", perm_idx, ", edge ", pair_order, "/", n_pairs, ": ", var1, " - ", var2))
       }
 
       # ---------- LLM call ----------

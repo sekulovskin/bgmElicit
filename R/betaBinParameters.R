@@ -21,7 +21,7 @@
 #' shape parameters `alpha` and `beta` based on the specified method. The available estimation methods are:
 #' - `"mle"`: Maximum likelihood estimation.
 #' - `"mom"`: Method of moments estimation.
-#' A warning is issued if fewer than 10 permutations are detected, as parameter estimation
+#' A warning is issued if fewer than 5 permutations are detected, as parameter estimation
 #' may be unreliable in such cases.
 #'
 #' @examples
@@ -52,7 +52,7 @@ betaBernParameters <- function(llmobject,
   }
 
   # check the number of permutations and give a warning message
-  if (length(unique(llmobject$raw_LLM$permutation)) < 10) { # we should discuss this
+  if (length(unique(llmobject$raw_LLM$permutation)) < 5) { # we should discuss this
     warning("Consider using more permutations in order to be able to properly estimate the parameters of the Beta distribution")
   }
 

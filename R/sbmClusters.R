@@ -17,7 +17,7 @@
 #' \code{threshold} are considered ties and are resolved in two separate runs (ties->0 and ties->1).
 #' Optionally, isolated vertices (degree 0) are removed prior to clustering and their membership is
 #' returned as \code{NA} in the original node order. If the elicitation object was generated from
-#' only a small number of permutations (e.g., < 10), cluster estimates may be unstable.
+#' only a small number of permutations (e.g., < 5), cluster estimates may be unstable.
 #'
 #' Supported community detection algorithms: \code{"louvain"}, \code{"walktrap"}, \code{"fast_greedy"},
 #' \code{"infomap"}, \code{"label_prop"}, \code{"edge_betweenness"}.
@@ -106,7 +106,7 @@ sbmClusters <- function(
   # Optional: warn if few permutations are present
   if (!is.null(llmobject$raw_LLM) && !is.null(llmobject$raw_LLM$permutation)) {
     n_perms <- length(unique(llmobject$raw_LLM$permutation))
-    if (n_perms < 10) {
+    if (n_perms < 5) {
       warning("Few permutations detected in llmobject (", n_perms,
               "); consider increasing for stability.")
     }

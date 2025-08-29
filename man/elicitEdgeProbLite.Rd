@@ -57,7 +57,7 @@ token log-probabilities.}
 \item{diagnostics}{List with counts and summary information about modes and
 decision pathways used during elicitation.}
 \item{inclusion_probability_matrix}{Symmetric matrix of edge-inclusion
-probabilities suitable for a Bernoulli prior in \pkg{easybgm}. Exact 0/1
+probabilities suitable for a Bernoulli prior in \link[easybgm:easybgm]{easybgm}. Exact 0/1
 values are squashed to \code{0.01}/\code{0.99}.}
 \item{arguments}{List of input arguments for reproducibility.}
 }
@@ -74,7 +74,7 @@ framework. In this function each variable pair is evaluated while only
 considering the remaining variables, but not the decision for those variables.
 Premutations are applied to the ordering of the remaining variables.
 The output is useful for specifying prior inclusion probabilities in
-the package \pkg{easybgm}. The output from this function can also be used to
+the package \link[easybgm:easybgm]{easybgm}. The output from this function can also be used to
 elicit the hyperparameters for the Beta-Bernoulli prior using the function
 \code{betaBinParameters}. Or the expected number of clusters for the Stochastic
 Block prior using the function \code{sbmClusters}.
@@ -106,5 +106,5 @@ print(result$relation_df)
 
 }
 \seealso{
-\link[=easybgm-package]{\pkg{easybgm}}
+\link[easybgm:easybgm]{easybgm}
 }

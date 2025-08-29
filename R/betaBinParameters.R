@@ -4,7 +4,7 @@
 #' inclusion probabilities elicited using the functions `"elicitEdgeProb"` or `"elicitEdgeProbLite"`.
 #' These parameters help in describing the prior probability for the network density.
 #' The elicited parameters can be used for specifying the shape parameters
-#' of the Beta-Bernoulli structure prior in the package \pkg{easybgm}.
+#' of the Beta-Bernoulli structure prior in the package \link[easybgm:easybgm]{easybgm}.
 #'
 #' @param llmobject An object of class `"elicitEdgeProb"` or `"elicitEdgeProbLite"`,
 #' "` as returned by LLM-based prior elicitation functions.
@@ -38,7 +38,7 @@
 #' @import dplyr
 #' @import stringr
 #'
-#' @seealso \link[=easybgm-package]{\pkg{easybgm}}
+#' @seealso \link[easybgm:easybgm]{easybgm}
 #' @export
 # Calculate the beta-Bernoulli parameters for the llm object
 

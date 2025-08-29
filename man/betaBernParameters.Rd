@@ -24,7 +24,7 @@ This function estimates the parameters of a Beta-Bernoulli distribution from the
 inclusion probabilities elicited using the functions \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}.
 These parameters help in describing the prior probability for the network density.
 The elicited parameters can be used for specifying the shape parameters
-of the Beta-Bernoulli structure prior in the package \pkg{easybgm}.
+of the Beta-Bernoulli structure prior in the package \link[easybgm:easybgm]{easybgm}.
 }
 \details{
 The function extracts the number of included edges (\code{"I"}) for each permutation or repetition
@@ -50,5 +50,5 @@ print(beta_params)
 
 }
 \seealso{
-\link[=easybgm-package]{\pkg{easybgm}}
+\link[easybgm:easybgm]{easybgm}
 }

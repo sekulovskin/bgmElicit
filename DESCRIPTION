@@ -15,7 +15,8 @@ Imports:
     stringr,
     keyring,
     httr,
-    easybgm,
-    igraph
+    igraph,
+    jsonlite,
+    trust
 URL: https://github.com/sekulovskin/llmBgmElicit
 BugReports: https://github.com/sekulovskin/llmBgmElicit/issues

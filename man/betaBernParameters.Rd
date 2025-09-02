@@ -33,7 +33,7 @@ shape parameters \code{alpha} and \code{beta} based on the specified method. The
 \itemize{
 \item \code{"mle"}: Maximum likelihood estimation.
 \item \code{"mom"}: Method of moments estimation.
-A warning is issued if fewer than 10 permutations are detected, as parameter estimation
+A warning is issued if fewer than 5 permutations are detected, as parameter estimation
 may be unreliable in such cases.
 }
 }

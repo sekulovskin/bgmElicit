@@ -78,7 +78,7 @@ entries strictly less than \code{threshold} are set to 0; values within \code{to
 \code{threshold} are considered ties and are resolved in two separate runs (ties->0 and ties->1).
 Optionally, isolated vertices (degree 0) are removed prior to clustering and their membership is
 returned as \code{NA} in the original node order. If the elicitation object was generated from
-only a small number of permutations (e.g., < 10), cluster estimates may be unstable.
+only a small number of permutations (e.g., < 5), cluster estimates may be unstable.
 
 Supported community detection algorithms: \code{"louvain"}, \code{"walktrap"}, \code{"fast_greedy"},
 \code{"infomap"}, \code{"label_prop"}, \code{"edge_betweenness"}.

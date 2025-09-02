@@ -230,11 +230,11 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables and
         isTRUE(use_logprobs) &&
         !is.null(LLM_output$top5_tokens) &&
         length(LLM_output$top5_tokens) >= 1 &&
-        is.data.frame(LLM_output$top5_tokens[[1]]) &&
-        NROW(LLM_output$top5_tokens[[1]]) > 0
+        is.data.frame(LLM_output$top5_tokens[[1]][[1]]) &&
+        NROW(LLM_output$top5_tokens[[1]][[1]]) > 0
 
       if (has_logprobs_df) {
-        logprobs_LLM_perm[[pair_order]] <- LLM_output$top5_tokens
+        logprobs_LLM_perm[[pair_order]] <- LLM_output$top5_tokens[[1]]
         mode_used_mat[pair_idx, perm_idx] <- "logprobs"
       } else {
         logprobs_LLM_perm[[pair_order]] <- NULL

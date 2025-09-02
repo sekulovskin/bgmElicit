@@ -145,7 +145,7 @@ elicitEdgeProb <- function(context,
   perms <- t(replicate(n_perm, sample(1:n_pairs, n_pairs, replace = FALSE), simplify = TRUE))
 
   # ---------- config ----------
-  use_logprobs <- isTRUE(logprobs) && model_supports_logprobs(LLM_model)
+  use_logprobs <- logprobs && model_supports_logprobs(LLM_model)
 
   raw_LLM <- vector("list", n_perm)
   logprobs_LLM <- vector("list", n_perm)
@@ -194,7 +194,7 @@ If there is a conditional association (edge present), output 'I'. If there is no
 Only output a single character: 'I' or 'E'. Consider the remaining variables and previous decisions."
       }
 
-      if (isTRUE(display_progress)) {
+      if (display_progress) {
         message(paste0("Processing permutation ", perm_idx, ", edge ", pair_order, "/", n_pairs, ": ", var1, " - ", var2))
       }
 
@@ -227,7 +227,7 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables and
 
       # Store logprobs only if available AND non-empty
       has_logprobs_df <-
-        isTRUE(use_logprobs) &&
+        use_logprobs &&
         !is.null(LLM_output$top5_tokens) &&
         length(LLM_output$top5_tokens) >= 1 &&
         is.data.frame(LLM_output$top5_tokens[[1]][[1]]) &&
@@ -376,8 +376,8 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables and
     n_perm = n_perm,
     seed = seed,
     n_default_05 = n_default_05,
-    logprobs_requested = isTRUE(logprobs),
-    logprobs_used = isTRUE(use_logprobs)
+    logprobs_requested = logprobs,
+    logprobs_used = use_logprobs
   )
 
   # ---------- symmetric inclusion probability matrix ----------

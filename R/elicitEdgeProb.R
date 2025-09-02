@@ -134,11 +134,11 @@ elicitEdgeProb <- function(context,
   n_pairs <- nrow(pairs_df)
 
   # ---------- permutations ----------
-  if (missing(n_perm)) {
+  if (is.null(n_perm)) {
     n_perm <- 5
     message("The n_perm argument was not specified. The function will proceed using five permutations of the variable pair order.")
   }
-  if (!missing(n_perm) && n_perm == 0) stop("n_perm cannot be zero.")
+  if (!is.null(n_perm) && n_perm <= 0) stop("n_perm cannot be zero or less than zero.")
   if (n_perm > 50) stop("Requested `n_perm` (", n_perm, ") exceeds maximum possible permutations which is set to 50.")
 
   set.seed(seed)

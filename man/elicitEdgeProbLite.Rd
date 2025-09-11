@@ -7,7 +7,7 @@
 elicitEdgeProbLite(
   context,
   variable_list,
-  LLM_model = "gpt-4",
+  LLM_model = "gpt-5",
   update_key = FALSE,
   n_perm = NULL,
   seed = 123,
@@ -31,7 +31,7 @@ and \code{"gpt-5-nano"}.}
 call. Only the first call uses the updated key. Default is \code{FALSE}.}
 
 \item{n_perm}{Integer or \code{NULL}. Number of random permutations of pair order
-to evaluate. If \code{NULL}, two permutations are used by default. Maximum is
+to evaluate. If \code{NULL}, five permutations are used by default. Maximum is
 \code{50}.}
 
 \item{seed}{Integer random seed for reproducibility of permutations.

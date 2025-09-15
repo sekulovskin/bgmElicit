@@ -72,7 +72,7 @@ print(result_lite$relation_df)
 ### Beta-Bernoulli Structure Prior
 
 ```r
-llm_out <- llmPriorElicitSimple(
+llm_out <- elicitEdgeProb(
   context = "Exploring cognitive symptoms and mood in depression",
   variable_list = c("Concentration", "Sadness", "Sleep"),
   n_rep = 3
@@ -84,7 +84,7 @@ print(beta_params)
 ### SBM Structure Prior
 
 ```r
-llm_out <- llmPriorElicitSimple(
+llm_out <- elicitEdgeProb(
   context = "Exploring cognitive symptoms and mood in depression",
   variable_list = c("Concentration", "Sadness", "Sleep"),
   n_rep = 3

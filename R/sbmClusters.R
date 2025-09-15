@@ -57,7 +57,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' llm_out <- llmPriorElicitSimple(
+#' llm_out <-  elicitEdgeProb(
 #'   context = "Exploring cognitive symptoms and mood in depression",
 #'   variable_list = c("Concentration", "Sadness", "Sleep"),
 #'   n_rep = 3

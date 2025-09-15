@@ -7,7 +7,7 @@
 #' of the Beta-Bernoulli structure prior in the package \link[easybgm:easybgm]{easybgm}.
 #'
 #' @param llmobject An object of class `"elicitEdgeProb"` or `"elicitEdgeProbLite"`,
-#' "` as returned by LLM-based prior elicitation functions.
+#'  as returned by the functions `"elicitEdgeProb"` or `"elicitEdgeProbLite"`.
 #' @param method Estimation method. One of `"mle"` (maximum likelihood) or `"mom"` (method of moments).
 #'   Default is `"mle"`.
 #' @param force_mom Logical. If `TRUE`, forces method of moments estimation even if `"mle"` is requested.
@@ -31,7 +31,7 @@
 #'   variable_list = c("Concentration", "Sadness", "Sleep"),
 #'   n_rep = 3
 #' )
-#' beta_params <- betaBinParameters(llm_out)
+#' beta_params <- betaBernParameters(llm_out)
 #' print(beta_params)
 #' }
 #'

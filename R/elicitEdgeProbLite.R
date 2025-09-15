@@ -1,7 +1,7 @@
-#' Elicit Prior Edge-Inclusion Probabilities with an LLM - Lightweight Version
+#' Elicit Prior Edge-Inclusion Probabilities with a LLM - Lightweight Version
 #'
 #' This function is a lightweight version of the `elicitEdgeProb` function.
-#' In case you are are willing to spend more time and budget we recommend using
+#' In case users are willing to spend more time and budget we recommend using
 #' `elicitEdgeProb` instead.
 #' This function queries a large language model (LLM) to elicit prior probabilities for the
 #' presence of conditional associations (edges) between pairs of variables
@@ -13,7 +13,7 @@
 #' The output is useful for specifying prior inclusion probabilities in
 #' the package \link[easybgm:easybgm]{easybgm}. The output from this function can also be used to
 #' elicit the hyperparameters for the Beta-Bernoulli prior using the function
-#' `betaBinParameters`. Or the expected number of clusters for the Stochastic
+#' `betaBernParameters`, or the expected number of clusters for the Stochastic
 #' Block prior using the function `sbmClusters`.
 #'
 #'
@@ -26,17 +26,14 @@
 #' or `"E"` (exclude)—to facilitate stable probability elicitation.
 #'
 #' When supported, token log-probabilities are requested and stored, enabling
-#' downstream inspection of decision confidence. The final
-#' `inclusion_probability_matrix` is symmetric and—where decisions imply exact
-#' 0/1—values are “squashed’’ to `0.01` and `0.99` to avoid degenerate priors in
-#' BGM estimation software.
+#' downstream inspection of decision confidence.
 #'
 #' @param context Optional character string with study background or domain
 #'   context to incorporate into the prompt. Defaults to `NULL`.
 #' @param variable_list Character vector of variable (node) names; must contain
 #'   at least three variables.
 #' @param LLM_model Character string selecting the LLM. Options include
-#'   `"gpt-4o"`, `"gpt-4-turbo"`, `"gpt-3.5-turbo"`, `"gpt-5"`, `"gpt-5-mini"`,
+#'   `"gpt-4"`, `"gpt-4o"`, `"gpt-4-turbo"`, `"gpt-3.5-turbo"`, `"gpt-5"`, `"gpt-5-mini"`,
 #'   and `"gpt-5-nano"`.
 #' @param update_key Logical; if `TRUE`, refreshes the API key prior to the LLM
 #'   call. Only the first call uses the updated key. Default is `FALSE`.
@@ -53,20 +50,19 @@
 #'   first decision token. Ignored for models that do not support logprobs.
 #'   Default is `FALSE`.
 #'
-#' @return A list of class `"elicitEdgeProb"` with components:
+#' @return A list of class `"elicitEdgeProbLite"` with components:
 #' \describe{
-#'   \item{relation_df}{Data frame with columns `var1`, `var2`, and `prob`,
-#'   containing elicited prior probabilities of conditional associations.}
-#'   \item{raw_LLM}{Data frame of raw prompts, responses, and (when available)
+#'  \item{raw_LLM}{Data frame of raw prompts, responses, and (when available)
 #'   token log-probabilities.}
-#'   \item{diagnostics}{List with counts and summary information about modes and
+#'  \item{diagnostics}{List with counts and summary information about modes and
 #'   decision pathways used during elicitation.}
-#'   \item{inclusion_probability_matrix}{Symmetric matrix of edge-inclusion
+#'  \item{relation_df}{Data frame with columns `var1`, `var2`, and `prob`,
+#'   containing elicited prior probabilities of conditional associations.}
+#'  \item{arguments}{List of input arguments for reproducibility.}
+#'  \item{inclusion_probability_matrix}{Symmetric matrix of edge-inclusion
 #'   probabilities suitable for a Bernoulli prior in \link[easybgm:easybgm]{easybgm}. Exact 0/1
 #'   values are squashed to `0.01`/`0.99`.}
-#'   \item{arguments}{List of input arguments for reproducibility.}
 #' }
-#'
 #' @examples
 #' \dontrun{
 #' result <- elicitEdgeProbLite(

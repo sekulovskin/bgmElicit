@@ -1,8 +1,8 @@
-# llmBgmElicit 
+# bgmElicit
 
 NOTE: This package is still in development and a paper is in preparation.
 
-The package `llmBgmElicit` provides tools to elicit prior edge inclusion probabilities 
+The package `bgmElicit` provides tools to elicit prior edge inclusion probabilities 
 using Large Language Models (LLMs) for analyzing Markov random field graphical models 
 within the Bayesian graphical modeling (BGM) framework. Currently, the package supports
 models provided by OpenAI. The elicited
@@ -10,7 +10,7 @@ prior can then be used in the **[`bgms`](https://cran.r-project.org/web/packages
 **[`BDgraph`](http://cran.r-project.org/web/packages/BDgraph/index.html)** and **[`easybgm`](https://cran.r-project.org/web/packages/easybgm/index.html)**
 R packages for Bayesian graphical modeling.
 
-The output from the main function, `elicitEdgeProb` (or its lightweight counterpart `elicitEdgeProbLite`), which elicitt prior inclusion 
+The output from the main function, `elicitEdgeProb` (or its lightweight counterpart `elicitEdgeProbLite`), which elicit prior inclusion 
 probabilities under the Bernoulli prior, can also be used to estimate the parameters of a Beta-Bernoulli
 e Stochastic-Block model (SBM) prior.
 
@@ -27,7 +27,7 @@ You can install the development version from GitHub:
 if (!requireNamespace("remotes")) { 
   install.packages("remotes")   
 }   
-remotes::install_github("sekulovskin/llmBgmElicit")
+remotes::install_github("sekulovskin/bgmElicit")
 ```
 
 ## Usage
@@ -37,7 +37,7 @@ remotes::install_github("sekulovskin/llmBgmElicit")
 Using the main function (recommended):
 
 ```r
-library(llmBgmElicit)
+library(bgmElicit)
 
 result_lite <- elicitEdgeProb(
   context = paste(

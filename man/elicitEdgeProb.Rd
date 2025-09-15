@@ -2,7 +2,7 @@
 % Please edit documentation in R/elicitEdgeProb.R
 \name{elicitEdgeProb}
 \alias{elicitEdgeProb}
-\title{Elicit Prior Edge-Inclusion Probabilities with an LLM}
+\title{Elicit Prior Edge-Inclusion Probabilities with a LLM}
 \usage{
 elicitEdgeProb(
   context,
@@ -24,7 +24,7 @@ context to incorporate into the prompt. Defaults to \code{NULL}.}
 at least three variables.}
 
 \item{LLM_model}{Character string selecting the LLM. Options include
-\code{"gpt-4o"}, \code{"gpt-4-turbo"}, \code{"gpt-3.5-turbo"}, \code{"gpt-5"}, \code{"gpt-5-mini"},
+\code{"gpt-4"}, \code{"gpt-4o"}, \code{"gpt-4-turbo"}, \code{"gpt-3.5-turbo"}, \code{"gpt-5"}, \code{"gpt-5-mini"},
 and \code{"gpt-5-nano"}.}
 
 \item{update_key}{Logical; if \code{TRUE}, refreshes the API key prior to the LLM
@@ -38,28 +38,30 @@ to evaluate. If \code{NULL}, five permutations are used by default. Maximum is
 Default is \code{123}.}
 
 \item{main_prompt}{Optional length-1 character vector used as the LLM system
-prompt. If \code{NULL}, a sensible default is used.}
+prompt. If \code{NULL}, a default is used.}
 
 \item{display_progress}{Logical; if \code{TRUE}, show progress messages.
 Default is \code{TRUE}.}
 
 \item{logprobs}{Logical; if \code{TRUE}, request token log-probabilities for the
-first decision token. Ignored for models that do not support logprobs.
+first decision token. Ignored for models that do not support logprobs
+( \code{"gpt-5"}, \code{"gpt-5-mini"},
+and \code{"gpt-5-nano"}).
 Default is \code{FALSE}.}
 }
 \value{
 A list of class \code{"elicitEdgeProb"} with components:
 \describe{
-\item{relation_df}{Data frame with columns \code{var1}, \code{var2}, and \code{prob},
-containing elicited prior probabilities of conditional associations.}
 \item{raw_LLM}{Data frame of raw prompts, responses, and (when available)
 token log-probabilities.}
 \item{diagnostics}{List with counts and summary information about modes and
 decision pathways used during elicitation.}
+\item{relation_df}{Data frame with columns \code{var1}, \code{var2}, and \code{prob},
+containing elicited prior probabilities of conditional associations.}
+\item{arguments}{List of input arguments for reproducibility.}
 \item{inclusion_probability_matrix}{Symmetric matrix of edge-inclusion
 probabilities suitable for a Bernoulli prior in \link[easybgm:easybgm]{easybgm}. Exact 0/1
 values are squashed to \code{0.01}/\code{0.99}.}
-\item{arguments}{List of input arguments for reproducibility.}
 }
 }
 \description{
@@ -75,7 +77,7 @@ The output is useful for specifying prior inclusion probabilities in
 the package \link[easybgm:easybgm]{easybgm} when using the Bernoulli prior.
 The output from this function can also be used to
 elicit the hyperparameters for the Beta-Bernoulli prior using the function
-\code{betaBinParameters}. Or the expected number of clusters for the Stochastic
+\code{betaBernParameters}, or the expected number of clusters for the Stochastic
 Block prior using the function \code{sbmClusters}.
 }
 \details{
@@ -83,14 +85,10 @@ The function iterates over all variable pairs and incrementally updates the
 prompt so the LLM can condition each decision on prior decisions for other
 pairs. To mitigate order effects, the pair order can be permuted multiple
 times; elicited probabilities are then averaged across permutations.
-The LLM is constrained to return binary decisions—\code{"I"} (include)
-or \code{"E"} (exclude)—to facilitate stable probability elicitation.
-
+The LLM is constrained to return binary decisions,\code{"I"} (include)
+or \code{"E"} (exclude), to facilitate stable probability elicitation.
 When supported, token log-probabilities are requested and stored, enabling
-downstream inspection of decision confidence. The final
-\code{inclusion_probability_matrix} is symmetric and—where decisions imply exact
-0/1—values are “squashed’’ to \code{0.01} and \code{0.99} to avoid degenerate priors in
-BGM estimation software.
+downstream inspection of decision confidence.
 }
 \examples{
 \dontrun{

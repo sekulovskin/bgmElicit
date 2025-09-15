@@ -2,7 +2,7 @@
 % Please edit documentation in R/sbmClusters.R
 \name{sbmClusters}
 \alias{sbmClusters}
-\title{Detect Communities from an LLM-Derived Inclusion-Probability Matrix}
+\title{Detect Communities from from LLM Output}
 \usage{
 sbmClusters(
   llmobject,
@@ -61,7 +61,7 @@ otherwise \code{NA}.}
 }
 }
 \description{
-This function estimates the number of clusters (communutues) in the network from the edge
+This function estimates the number of clusters (communutues) and the node-cluster membership in the network from the edge
 inclusion probabilities elicited using the functions \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}.
 The function uses the \code{inclusion_probability_matrix} stored in an object of class
 \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"} to construct a binary
@@ -73,7 +73,7 @@ of the Poisson structure prior for the Stochastic Block Model prior in the packa
 This rate parameter denotes the expected number of clusters.
 }
 \details{
-Binarization rule: entries strictly greater than \code{threshold + tol} are set to 1;
+Binarization rule: entries strictly greater than \code{threshold + tol}, are set to 1;
 entries strictly less than \code{threshold} are set to 0; values within \code{tol} of
 \code{threshold} are considered ties and are resolved in two separate runs (ties->0 and ties->1).
 Optionally, isolated vertices (degree 0) are removed prior to clustering and their membership is

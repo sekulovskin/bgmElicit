@@ -2,7 +2,7 @@
 % Please edit documentation in R/elicitEdgeProbLite.R
 \name{elicitEdgeProbLite}
 \alias{elicitEdgeProbLite}
-\title{Elicit Prior Edge-Inclusion Probabilities with an LLM - Lightweight Version}
+\title{Elicit Prior Edge-Inclusion Probabilities with a LLM - Lightweight Version}
 \usage{
 elicitEdgeProbLite(
   context,
@@ -24,7 +24,7 @@ context to incorporate into the prompt. Defaults to \code{NULL}.}
 at least three variables.}
 
 \item{LLM_model}{Character string selecting the LLM. Options include
-\code{"gpt-4o"}, \code{"gpt-4-turbo"}, \code{"gpt-3.5-turbo"}, \code{"gpt-5"}, \code{"gpt-5-mini"},
+\code{"gpt-4"}, \code{"gpt-4o"}, \code{"gpt-4-turbo"}, \code{"gpt-3.5-turbo"}, \code{"gpt-5"}, \code{"gpt-5-mini"},
 and \code{"gpt-5-nano"}.}
 
 \item{update_key}{Logical; if \code{TRUE}, refreshes the API key prior to the LLM
@@ -48,23 +48,23 @@ first decision token. Ignored for models that do not support logprobs.
 Default is \code{FALSE}.}
 }
 \value{
-A list of class \code{"elicitEdgeProb"} with components:
+A list of class \code{"elicitEdgeProbLite"} with components:
 \describe{
-\item{relation_df}{Data frame with columns \code{var1}, \code{var2}, and \code{prob},
-containing elicited prior probabilities of conditional associations.}
 \item{raw_LLM}{Data frame of raw prompts, responses, and (when available)
 token log-probabilities.}
 \item{diagnostics}{List with counts and summary information about modes and
 decision pathways used during elicitation.}
+\item{relation_df}{Data frame with columns \code{var1}, \code{var2}, and \code{prob},
+containing elicited prior probabilities of conditional associations.}
+\item{arguments}{List of input arguments for reproducibility.}
 \item{inclusion_probability_matrix}{Symmetric matrix of edge-inclusion
 probabilities suitable for a Bernoulli prior in \link[easybgm:easybgm]{easybgm}. Exact 0/1
 values are squashed to \code{0.01}/\code{0.99}.}
-\item{arguments}{List of input arguments for reproducibility.}
 }
 }
 \description{
 This function is a lightweight version of the \code{elicitEdgeProb} function.
-In case you are are willing to spend more time and budget we recommend using
+In case users are willing to spend more time and budget we recommend using
 \code{elicitEdgeProb} instead.
 This function queries a large language model (LLM) to elicit prior probabilities for the
 presence of conditional associations (edges) between pairs of variables
@@ -76,7 +76,7 @@ Premutations are applied to the ordering of the remaining variables.
 The output is useful for specifying prior inclusion probabilities in
 the package \link[easybgm:easybgm]{easybgm}. The output from this function can also be used to
 elicit the hyperparameters for the Beta-Bernoulli prior using the function
-\code{betaBinParameters}. Or the expected number of clusters for the Stochastic
+\code{betaBernParameters}, or the expected number of clusters for the Stochastic
 Block prior using the function \code{sbmClusters}.
 }
 \details{
@@ -88,10 +88,7 @@ The LLM is constrained to return binary decisions—\code{"I"} (include)
 or \code{"E"} (exclude)—to facilitate stable probability elicitation.
 
 When supported, token log-probabilities are requested and stored, enabling
-downstream inspection of decision confidence. The final
-\code{inclusion_probability_matrix} is symmetric and—where decisions imply exact
-0/1—values are “squashed’’ to \code{0.01} and \code{0.99} to avoid degenerate priors in
-BGM estimation software.
+downstream inspection of decision confidence.
 }
 \examples{
 \dontrun{

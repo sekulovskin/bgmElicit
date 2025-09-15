@@ -1,11 +1,11 @@
-Package: llmBgmElicit
-Title: Elicit Prior Edge Inclusion Probabilities for Bayesian Graphical Models Using LLMs
+Package: bgmElicit
+Title: Elicit Network Structure Priors for Bayesian Graphical Models Using Large Language Models
 Version: 0.0.0.9000
 Authors@R: c(
     person("Nikola", "Sekulovski", email = "n.sekulovski@uva.nl", role = c("aut", "cre")),
     person("Meike", "Waaijers", role = "ctb"),
     person("Giuseppe", "Arena", role = "ctb"))
-Description: Provides functions for eliciting prior edge inclusion probabilities in Bayesian graphical models (BGMs) using large language models (LLMs). The package allows users to specify variable sets and optional contextual information to query LLMs for conditional associations between variable pairs. It includes both a full and simplified elicitation function, as well as utilities for handling API access and LLM responses. It also provides the option to elicit the parameters for a Beta-Binomial distribution on the network structure.
+Description: Provides functions for eliciting prior edge inclusion probabilities in Bayesian graphical models (BGMs) using large language models (LLMs). The package allows users to specify variable sets and optional contextual information to query LLMs for conditional associations between variable pairs. It includes both a full and simplified elicitation function. It also provides the option to elicit the parameters for a Beta-Bernoulli ans the Stochastic Block model priors on the network structure.
 License: MIT
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -18,5 +18,5 @@ Imports:
     igraph,
     jsonlite,
     trust
-URL: https://github.com/sekulovskin/llmBgmElicit
-BugReports: https://github.com/sekulovskin/llmBgmElicit/issues
+URL: https://github.com/sekulovskin/bgmElicit
+BugReports: https://github.com/sekulovskin/bgmElicit/issues

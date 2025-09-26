@@ -61,7 +61,7 @@ otherwise \code{NA}.}
 }
 }
 \description{
-This function estimates the number of clusters (communutues) and the node-cluster membership in the network from the edge
+This function estimates the number of clusters (communities) and the node-cluster membership in the network from the edge
 inclusion probabilities elicited using the functions \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}.
 The function uses the \code{inclusion_probability_matrix} stored in an object of class
 \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"} to construct a binary

@@ -1,7 +1,7 @@
 #' Estimate Beta-Bernoulli Parameters from LLM Output
 #'
 #' This function estimates the parameters of a Beta-Bernoulli distribution from the edge
-#' inclusion probabilities elicited using the functions `"elicitEdgeProb"` or `"elicitEdgeProbLite"`.
+#' inclusions elicited using the functions `"elicitEdgeProb"` or `"elicitEdgeProbLite"`.
 #' These parameters help in describing the prior probability for the network density.
 #' The elicited parameters can be used for specifying the shape parameters
 #' of the Beta-Bernoulli structure prior in the package \link[easybgm:easybgm]{easybgm}.
@@ -10,7 +10,8 @@
 #'  as returned by the functions `"elicitEdgeProb"` or `"elicitEdgeProbLite"`.
 #' @param method Estimation method. One of `"mle"` (maximum likelihood) or `"mom"` (method of moments).
 #'   Default is `"mle"`.
-#' @param force_mom Logical. If `TRUE`, forces method of moments estimation even if `"mle"` is requested.
+#' @param force_mom Logical. If `TRUE`, forces method of moments estimation even
+#' if `"mle"` is requested.
 #'   Default is `FALSE`.
 #'
 #' @return A list containing the estimated `alpha` and `beta` parameters of the Beta-Bernoulli distribution.

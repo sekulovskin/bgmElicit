@@ -6,15 +6,14 @@
 #' psychological network models within the Bayesian Graphical Modeling (BGM)
 #' framework. This is the main function of the package and it uses a chained
 #' approach where in each permutation of all possible variable pairs,
-#' the prompt for the current pair also includes the decisions made
-#' for all previous pairs.
+#' the prompt for the current pair also includes the decisions made by the LLM
+#' for all previous pairs of nodes.
 #' The output is useful for specifying prior inclusion probabilities in
 #' the package \link[easybgm:easybgm]{easybgm} when using the Bernoulli prior.
 #' The output from this function can also be used to
 #' elicit the hyperparameters for the Beta-Bernoulli prior using the function
 #' `betaBernParameters`, or the expected number of clusters for the Stochastic
 #' Block prior using the function `sbmClusters`.
-#'
 #'
 #' @details
 #' The function iterates over all variable pairs and incrementally updates the
@@ -23,16 +22,20 @@
 #' times; elicited probabilities are then averaged across permutations.
 #' The LLM is constrained to return binary decisions,`"I"` (include)
 #' or `"E"` (exclude), to facilitate stable probability elicitation.
-#' When supported, token log-probabilities are requested and stored, enabling
-#' downstream inspection of decision confidence.
+#' When supported, token log-probabilities are requested and used for calculating
+#' the final elicited prior probabilities. If log-probabilities are not
+#' supported by the selected model, or if the log-probabilities for `"I"`
+#' and `"E"` are both zero, the function falls back to using the hard decision
+#' from the text output. If the text output is not interpretable, a default
+#' probability of `0.5` is assigned.
 #'
 #' @param context Optional character string with study background or domain
 #'   context to incorporate into the prompt. Defaults to `NULL`.
 #' @param variable_list Character vector of variable (node) names; must contain
 #'   at least three variables.
 #' @param LLM_model Character string selecting the LLM. Options include
-#'   `"gpt-4"`, `"gpt-4o"`, `"gpt-4-turbo"`, `"gpt-3.5-turbo"`, `"gpt-5"`, `"gpt-5-mini"`,
-#'   and `"gpt-5-nano"`.
+#'   `"gpt-4"`, `"gpt-4o"`, `"gpt-4-turbo"`, `"gpt-3.5-turbo"`, `"gpt-5"`,
+#'   `"gpt-5-mini"`, and `"gpt-5-nano"`.
 #' @param update_key Logical; if `TRUE`, refreshes the API key prior to the LLM
 #'   call. Only the first call uses the updated key. Default is `FALSE`.
 #' @param n_perm Integer or `NULL`. Number of random permutations of pair order

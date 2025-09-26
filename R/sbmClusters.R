@@ -1,10 +1,10 @@
 #' Detect Communities from from LLM Output
 #'
-#' This function estimates the number of clusters (communutues) and the node-cluster membership in the network from the edge
-#' inclusion probabilities elicited using the functions `"elicitEdgeProb"` or `"elicitEdgeProbLite"`.
+#' This function estimates the number of clusters (communities) and the node-cluster membership in the
+#' network implied from the edge inclusion probabilities elicited using the functions `"elicitEdgeProb"` or `"elicitEdgeProbLite"`.
 #' The function uses the \code{inclusion_probability_matrix} stored in an object of class
 #' \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"} to construct a binary
-#' adjacency matrix (thresholded at \code{threshold}) and runs community detection algorithm.
+#' adjacency matrix (thresholded at \code{threshold}) on which it runs community detection algorithm.
 #' To assess sensitivity to ties (values exactly at the threshold of 0.5), the procedure
 #' is executed twice: once with ties treated as 0 and once with ties treated as 1.
 #' The elicited number of cluster can be used for specifying the rate parameter
@@ -15,7 +15,7 @@
 #' Binarization rule: entries strictly greater than \code{threshold + tol}, are set to 1;
 #' entries strictly less than \code{threshold} are set to 0; values within \code{tol} of
 #' \code{threshold} are considered ties and are resolved in two separate runs (ties->0 and ties->1).
-#' Optionally, isolated vertices (degree 0) are removed prior to clustering and their membership is
+#' Optionally, isolated vertices are removed prior to clustering and their membership is
 #' returned as \code{NA} in the original node order. If the elicitation object was generated from
 #' only a small number of permutations (e.g., < 5), cluster estimates may be unstable.
 #'
@@ -24,7 +24,7 @@
 #'
 #' @param llmobject An object of class \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}
 #'   containing a valid \code{inclusion_probability_matrix} (numeric, symmetric, values in \code{[0,1]},
-#'   zero diagonal).
+#'   zeros on the diagonal).
 #' @param algorithm Community-detection algorithm. One of
 #'   \code{c("louvain","walktrap","fast_greedy","infomap","label_prop","edge_betweenness")}.
 #' @param threshold Numeric threshold for binarizing the matrix. Default is \code{0.5}.
@@ -93,7 +93,7 @@ sbmClusters <- function(
 
   algorithm <- match.arg(algorithm)
 
-  # ---- Class & structure checks ----
+  #  Class & structure checks
   if (!(inherits(llmobject, "elicitEdgeProb") || inherits(llmobject, "elicitEdgeProbLite"))) {
     stop("The input must be of class 'elicitEdgeProb' or 'elicitEdgeProbLite'.")
   }
@@ -114,7 +114,7 @@ sbmClusters <- function(
 
   n <- nrow(mat)
 
-  # ---- Threshold: <th -> 0, >th -> 1; ties handled via branching ----
+  # Threshold: <th -> 0, >th -> 1; ties handled via branching
   adj_base <- matrix(0L, n, n)
   adj_base[mat > (threshold + tol)] <- 1L
   tie_mask <- abs(mat - threshold) <= tol
@@ -184,7 +184,7 @@ sbmClusters <- function(
          modularity = as.numeric(mod))
   }
 
-  # ---- Branch: ties -> 0 and ties -> 1 (if no ties, both identical) ----
+  #  Branch: ties -> 0 and ties -> 1 (if no ties, both identical)
   adj0 <- make_adj(0L)
   adj1 <- make_adj(1L)
 

@@ -278,44 +278,46 @@ parseDecision <- function(content) {
 # function to estimate beta-binomial parameters
 
 estimate_beta_binomial <- function(x, n, method = c("mle", "mom"), force_mom = FALSE) {
+  method <- match.arg(method)
 
   # the model is
   # p ~ Beta(alpha,beta) x|p ~ Binomial(n,p)
   # where:
-  # - "n" is the number of "iterations" (for "llmPriorElicit" and "llmPriorElicitSimple"), or the number of "permutations" (for "llmPriorElicitRelations")
+  # - "n" is the number of premutations
   # - "x" is the vector of success (sum of I's) across iterations (or permutations)
 
   if (any(x < 0) || any(x > n)) {
     stop("All values of x must be between 0 and n.")
   }
 
-
   # alpha and beta estimated using method of moments (mom)
   # Mean: E[X] = E[E[X|p]] = E[n * p] = n * E[p] = n * ( alpha/(alpha + beta) )
-  m1 <- mean(x)/n
   # Second factorial moment: E[X(X-1)] = n*(n-1) * [(alpha*(alpha+1))/( (alpha+beta)*(alpha+beta+1) )]
-  m2f <- mean(x*(x-1))/(n*(n-1))
 
-  denom <- m2f-m1^2
-  if(denom <= 0){
+  # Only compute MoM when we actually need to return MoM (and are not forcing MLE)
+  if (method == "mom" && !force_mom) {
+    m1  <- mean(x)/n
+    m2f <- mean(x*(x-1))/(n*(n-1))
+
+    denom <- m2f - m1^2
+    if (denom <= 0) {
+      alpha <- beta <- NA
+    } else {
+      s     <- (m1 - m2f)/denom
+      alpha <- m1 * s
+      beta  <- (1 - m1) * s
+    }
+
+    # For MoM return, we don't need optimizer init; just return below.
+    init <- c(0, 0) # placeholder, unused in this branch
+  } else {
+    # Skipping MoM computation; set a reasonable starting point for MLE directly
     alpha <- beta <- NA
-  } else{
-    s <- (m1-m2f)/denom
-    alpha <- m1*s
-    beta <- (1-m1)*s
-  }
-
-  init <- c(0,0)
-  if ((alpha <= 0 || beta <= 0) || (is.na(alpha) || is.na(beta))) {
-    warning("Invalid MoM estimates (possibly due to low variance). Falling back to MLE.")
     init <- log(c(mean(x) + 1, n - mean(x) + 1))  # reasonable starting point
-  }
-  else{
-    init <- log(c(alpha,beta))
   }
 
   # negative loglikelihood
-  beta_binom_fun <- function(pars,x,n){
+  beta_binom_fun <- function(pars, x, n){
     alpha <- exp(pars[1])
     beta <- exp(pars[2])
 
@@ -340,20 +342,19 @@ estimate_beta_binomial <- function(x, n, method = c("mle", "mom"), force_mom = F
     return(list(value = -value, gradient = -gradient, hessian = -hessian)) # return negative because negative loglikelihood
   }
 
-  fit <- trust::trust(objfun = beta_binom_fun, parinit = init, x = x, n = n, rinit = 0.1, rmax = 10.0)
-  alpha_mle <- exp(fit$argument[1])
-  beta_mle  <- exp(fit$argument[2])
-
   # output depending on what method is requested
   if (method == "mle" || (force_mom && method == "mom")) {
+    # Run optimizer only in the MLE branch
+    fit <- trust::trust(objfun = beta_binom_fun, parinit = init, x = x, n = n, rinit = 0.1, rmax = 10.0)
+    alpha_mle <- exp(fit$argument[1])
+    beta_mle  <- exp(fit$argument[2])
     return(list(mle = c("alpha" = alpha_mle, "beta" = beta_mle)))
   }
   if (method == "mom") {
+    # If MoM invalid, keep your original warning + NA behavior
+    if ((alpha <= 0 || beta <= 0) || (is.na(alpha) || is.na(beta))) {
+      warning("Invalid MoM estimates (possibly due to low variance).")
+    }
     return(list(mom = c("alpha" = alpha, "beta" = beta)))
   }
-  # if method is not specified or both are requested return both
-  if (method == "both" || (force_mom && method == "mle")) {
-    return(list(mle = c("alpha" = alpha_mle, "beta" = beta_mle), mom = c("alpha" = alpha, "beta" = beta)))
-  }
-
 }

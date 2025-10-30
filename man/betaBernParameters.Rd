@@ -13,7 +13,8 @@ as returned by the functions \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLit
 \item{method}{Estimation method. One of \code{"mle"} (maximum likelihood) or \code{"mom"} (method of moments).
 Default is \code{"mle"}.}
 
-\item{force_mom}{Logical. If \code{TRUE}, forces method of moments estimation even if \code{"mle"} is requested.
+\item{force_mom}{Logical. If \code{TRUE}, forces method of moments estimation even
+if \code{"mle"} is requested.
 Default is \code{FALSE}.}
 }
 \value{
@@ -21,7 +22,7 @@ A list containing the estimated \code{alpha} and \code{beta} parameters of the B
 }
 \description{
 This function estimates the parameters of a Beta-Bernoulli distribution from the edge
-inclusion probabilities elicited using the functions \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}.
+inclusions elicited using the functions \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}.
 These parameters help in describing the prior probability for the network density.
 The elicited parameters can be used for specifying the shape parameters
 of the Beta-Bernoulli structure prior in the package \link[easybgm:easybgm]{easybgm}.

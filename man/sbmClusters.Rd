@@ -20,7 +20,7 @@ sbmClusters(
 \arguments{
 \item{llmobject}{An object of class \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}
 containing a valid \code{inclusion_probability_matrix} (numeric, symmetric, values in \code{[0,1]},
-zero diagonal).}
+zeros on the diagonal).}
 
 \item{algorithm}{Community-detection algorithm. One of
 \code{c("louvain","walktrap","fast_greedy","infomap","label_prop","edge_betweenness")}.}
@@ -61,11 +61,11 @@ otherwise \code{NA}.}
 }
 }
 \description{
-This function estimates the number of clusters (communities) and the node-cluster membership in the network from the edge
-inclusion probabilities elicited using the functions \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}.
+This function estimates the number of clusters (communities) and the node-cluster membership in the
+network implied from the edge inclusion probabilities elicited using the functions \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"}.
 The function uses the \code{inclusion_probability_matrix} stored in an object of class
 \code{"elicitEdgeProb"} or \code{"elicitEdgeProbLite"} to construct a binary
-adjacency matrix (thresholded at \code{threshold}) and runs community detection algorithm.
+adjacency matrix (thresholded at \code{threshold}) on which it runs community detection algorithm.
 To assess sensitivity to ties (values exactly at the threshold of 0.5), the procedure
 is executed twice: once with ties treated as 0 and once with ties treated as 1.
 The elicited number of cluster can be used for specifying the rate parameter
@@ -76,7 +76,7 @@ This rate parameter denotes the expected number of clusters.
 Binarization rule: entries strictly greater than \code{threshold + tol}, are set to 1;
 entries strictly less than \code{threshold} are set to 0; values within \code{tol} of
 \code{threshold} are considered ties and are resolved in two separate runs (ties->0 and ties->1).
-Optionally, isolated vertices (degree 0) are removed prior to clustering and their membership is
+Optionally, isolated vertices are removed prior to clustering and their membership is
 returned as \code{NA} in the original node order. If the elicitation object was generated from
 only a small number of permutations (e.g., < 5), cluster estimates may be unstable.
 

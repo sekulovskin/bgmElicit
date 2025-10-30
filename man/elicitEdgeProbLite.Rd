@@ -24,8 +24,8 @@ context to incorporate into the prompt. Defaults to \code{NULL}.}
 at least three variables.}
 
 \item{LLM_model}{Character string selecting the LLM. Options include
-\code{"gpt-4"}, \code{"gpt-4o"}, \code{"gpt-4-turbo"}, \code{"gpt-3.5-turbo"}, \code{"gpt-5"}, \code{"gpt-5-mini"},
-and \code{"gpt-5-nano"}.}
+\code{"gpt-4"}, \code{"gpt-4o"}, \code{"gpt-4-turbo"}, \code{"gpt-3.5-turbo"}, \code{"gpt-5"},
+\code{"gpt-5-mini"}, and \code{"gpt-5-nano"}.}
 
 \item{update_key}{Logical; if \code{TRUE}, refreshes the API key prior to the LLM
 call. Only the first call uses the updated key. Default is \code{FALSE}.}
@@ -58,37 +58,42 @@ decision pathways used during elicitation.}
 containing elicited prior probabilities of conditional associations.}
 \item{arguments}{List of input arguments for reproducibility.}
 \item{inclusion_probability_matrix}{Symmetric matrix of edge-inclusion
-probabilities suitable for a Bernoulli prior in \link[easybgm:easybgm]{easybgm}. Exact 0/1
-values are squashed to \code{0.01}/\code{0.99}.}
+probabilities suitable for a Bernoulli prior in \link[easybgm:easybgm]{easybgm}.
+Exact 0/1 values are squashed to \code{0.01}/\code{0.99}.}
 }
 }
 \description{
 This function is a lightweight version of the \code{elicitEdgeProb} function.
 In case users are willing to spend more time and budget we recommend using
 \code{elicitEdgeProb} instead.
-This function queries a large language model (LLM) to elicit prior probabilities for the
-presence of conditional associations (edges) between pairs of variables
+This function queries a large language model (LLM) to elicit prior probabilities
+for the presence of conditional associations (edges) between pairs of variables
 (nodes) in a Markov random field (MRF) graphical model, as used for
 psychological network models within the Bayesian Graphical Modeling (BGM)
 framework. In this function each variable pair is evaluated while only
-considering the remaining variables, but not the decision for those variables.
-Premutations are applied to the ordering of the remaining variables.
+considering the remaining variables in the network, but without taking into
+account the LLM's decision for the variable pairs of those remaining variables.
+Permutations are applied to the ordering of the remaining variables.
 The output is useful for specifying prior inclusion probabilities in
-the package \link[easybgm:easybgm]{easybgm}. The output from this function can also be used to
-elicit the hyperparameters for the Beta-Bernoulli prior using the function
-\code{betaBernParameters}, or the expected number of clusters for the Stochastic
-Block prior using the function \code{sbmClusters}.
+the package \link[easybgm:easybgm]{easybgm}. The output from this function
+can also be used toelicit the hyperparameters for the Beta-Bernoulli prior
+using the function \code{betaBernParameters}, or the expected number of clusters
+for the Stochastic Block prior using the function \code{sbmClusters}.
 }
 \details{
 The function iterates over all variable pairs and provides a list of the
 remaining variables in the network. It allows for different permutations
 of the remaining variables to be evaluated, which can help in eliciting
 more robust probabilities.
-The LLM is constrained to return binary decisions—\code{"I"} (include)
-or \code{"E"} (exclude)—to facilitate stable probability elicitation.
+The LLM is constrained to return binary decisions:\code{"I"} (include)
+or \code{"E"} (exclude); to facilitate stable probability elicitation.
 
-When supported, token log-probabilities are requested and stored, enabling
-downstream inspection of decision confidence.
+When supported, token log-probabilities are requested and used for calculating
+the final elicited prior probabilities. If log-probabilities are not
+supported by the selected model, or if the log-probabilities for \code{"I"}
+and \code{"E"} are both zero, the function falls back to using the hard decision
+from the text output. If the text output is not interpretable, a default
+probability of \code{0.5} is assigned.
 }
 \examples{
 \dontrun{

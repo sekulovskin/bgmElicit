@@ -20,3 +20,8 @@ Imports:
     trust
 URL: https://github.com/sekulovskin/bgmElicit
 BugReports: https://github.com/sekulovskin/bgmElicit/issues
+Suggests: 
+    testthat (>= 3.0.0)
+    mockery,
+    withr
+Config/testthat/edition: 3

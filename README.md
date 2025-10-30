@@ -1,10 +1,8 @@
 # bgmElicit
 
-NOTE: This package is still in development and a paper is in preparation.
-
 The package `bgmElicit` provides tools to elicit prior edge inclusion probabilities 
 using Large Language Models (LLMs) for analyzing Markov random field graphical models 
-within the Bayesian graphical modeling (BGM) framework. Currently, the package supports
+within the Bayesian graphical modeling (BGM) framework. The methodology of the package is presented in Sekulovski, Waaijers, & Arena (2025). Currently, the package supports
 models provided by OpenAI. The elicited
 prior can then be used in the **[`bgms`](https://cran.r-project.org/web/packages/bgms/index.html)**,
 **[`BDgraph`](http://cran.r-project.org/web/packages/BDgraph/index.html)** and **[`easybgm`](https://cran.r-project.org/web/packages/easybgm/index.html)**
@@ -98,3 +96,5 @@ cl$elicited_no_clusters
 ```
 
 
+# References
+Sekulovski, N., Waaijers, M., & Arena, G. (2025). LLM-based prior elicitation for Bayesian graphical modeling. Center for Open Science. [https://doi.org/10.31234/osf.io/k2twq_v1](https://doi.org/10.31234/osf.io/k2twq_v1)

@@ -24,8 +24,8 @@ context to incorporate into the prompt. Defaults to \code{NULL}.}
 at least three variables.}
 
 \item{LLM_model}{Character string selecting the LLM. Options include
-\code{"gpt-4"}, \code{"gpt-4o"}, \code{"gpt-4-turbo"}, \code{"gpt-3.5-turbo"}, \code{"gpt-5"}, \code{"gpt-5-mini"},
-and \code{"gpt-5-nano"}.}
+\code{"gpt-4"}, \code{"gpt-4o"}, \code{"gpt-4-turbo"}, \code{"gpt-3.5-turbo"}, \code{"gpt-5"},
+\code{"gpt-5-mini"}, and \code{"gpt-5-nano"}.}
 
 \item{update_key}{Logical; if \code{TRUE}, refreshes the API key prior to the LLM
 call. Only the first call uses the updated key. Default is \code{FALSE}.}
@@ -71,8 +71,8 @@ presence of conditional associations (edges) between pairs of variables
 psychological network models within the Bayesian Graphical Modeling (BGM)
 framework. This is the main function of the package and it uses a chained
 approach where in each permutation of all possible variable pairs,
-the prompt for the current pair also includes the decisions made
-for all previous pairs.
+the prompt for the current pair also includes the decisions made by the LLM
+for all previous pairs of nodes.
 The output is useful for specifying prior inclusion probabilities in
 the package \link[easybgm:easybgm]{easybgm} when using the Bernoulli prior.
 The output from this function can also be used to
@@ -87,8 +87,12 @@ pairs. To mitigate order effects, the pair order can be permuted multiple
 times; elicited probabilities are then averaged across permutations.
 The LLM is constrained to return binary decisions,\code{"I"} (include)
 or \code{"E"} (exclude), to facilitate stable probability elicitation.
-When supported, token log-probabilities are requested and stored, enabling
-downstream inspection of decision confidence.
+When supported, token log-probabilities are requested and used for calculating
+the final elicited prior probabilities. If log-probabilities are not
+supported by the selected model, or if the log-probabilities for \code{"I"}
+and \code{"E"} are both zero, the function falls back to using the hard decision
+from the text output. If the text output is not interpretable, a default
+probability of \code{0.5} is assigned.
 }
 \examples{
 \dontrun{

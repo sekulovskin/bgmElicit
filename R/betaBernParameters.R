@@ -41,7 +41,6 @@
 #'
 #' @seealso \link[easybgm:easybgm]{easybgm}
 #' @export
-# Calculate the beta-Bernoulli parameters for the llm object
 
 betaBernParameters <- function(llmobject,
                               method = "mle",

@@ -1,6 +1,6 @@
 Package: bgmElicit
 Title: Elicit Network Structure Priors for Bayesian Graphical Models Using Large Language Models
-Version: 0.0.0.9001
+Version: 0.1.0
 Authors@R: c(
     person("Nikola", "Sekulovski", email = "n.sekulovski@uva.nl", role = c("aut", "cre")),
     person("Meike", "Waaijers", role = "ctb"),

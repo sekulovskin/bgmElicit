@@ -2,7 +2,7 @@
 % Please edit documentation in R/sbmClusters.R
 \name{sbmClusters}
 \alias{sbmClusters}
-\title{Detect Communities from from LLM Output}
+\title{Detect Communities from LLM Output}
 \usage{
 sbmClusters(
   llmobject,
@@ -80,7 +80,7 @@ Optionally, isolated vertices are removed prior to clustering and their membersh
 returned as \code{NA} in the original node order. If the elicitation object was generated from
 only a small number of permutations (e.g., < 5), cluster estimates may be unstable.
 
-The estimated number of communities can inform the choice of the parameter \code{lambda}in the SBM prior,
+The estimated number of communities can inform the choice of the parameter \code{lambda} in the SBM prior,
 which controls the expected number of clusters. For a single cluster, \code{lambda} <= 1 is appropriate,
 while for two, three, and four clusters, \code{lambda} should be set to 1.59, 2.82, and 3.92, respectively.
 For five or more clusters, \code{lambda} can be set equal to the elicited number of clusters.
@@ -93,7 +93,7 @@ Supported community detection algorithms: \code{"louvain"}, \code{"walktrap"}, \
 llm_out <-  elicitEdgeProb(
   context = "Exploring cognitive symptoms and mood in depression",
   variable_list = c("Concentration", "Sadness", "Sleep"),
-  n_rep = 3
+  n_perm = 3
 )
 cl <- sbmClusters(
   llmobject = llm_out,

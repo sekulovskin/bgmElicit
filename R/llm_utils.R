@@ -3,9 +3,89 @@
 # Some of these functions are adapted from the theoraizer package
 # credits: https://github.com/MeikeWaaijers/theoraizer
 
-# logprob helper function
-getLLMLogprobs <- function(raw_content,
-                         LLM_model = LLM_model) {
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
+# ---------------------------------------------------------------------------
+# Shared helpers for the elicitation functions
+# ---------------------------------------------------------------------------
+
+# All unordered variable pairs as a two-column data frame
+makePairsDf <- function(variable_list) {
+  pairs <- t(utils::combn(variable_list, 2))
+  data.frame(var1 = pairs[, 1], var2 = pairs[, 2], stringsAsFactors = FALSE)
+}
+
+# Only these chat-completions models return token logprobs
+modelSupportsLogprobs <- function(m) {
+  grepl("^gpt-4o$|^gpt-4-turbo$|^gpt-4$|^gpt-3\\.5-turbo$", m)
+}
+
+# First decision character from a text response: "i", "e", or "?"
+extractDecisionChar <- function(txt) {
+  ch <- substr(trimws(txt %||% ""), 1, 1)
+  if (!nzchar(ch)) return("?")
+  ch <- tolower(ch)
+  if (ch %in% c("i", "e")) ch else "?"
+}
+
+# Safely fetch the first-token logprobs data.frame if present & non-empty
+safeFirstTokenDf <- function(topk_list) {
+  if (is.null(topk_list) || !is.list(topk_list) || length(topk_list) < 1) return(NULL)
+  ft <- topk_list[[1]]
+  if (is.null(ft) || !is.data.frame(ft) || NROW(ft) == 0) return(NULL)
+  ft
+}
+
+# Safe accessor to avoid [[idx]] on NULL/short lists
+getTopkFor <- function(lst, idx) {
+  if (is.null(lst)) return(NULL)
+  if (!is.list(lst)) return(NULL)
+  if (length(lst) < idx) return(NULL)
+  lst[[idx]]
+}
+
+# TRUE when a callLLM() result carries a usable first-token logprobs data.frame
+hasLogprobsDf <- function(LLM_output) {
+  tt <- LLM_output$top5_tokens
+  !is.null(tt) && is.list(tt) && length(tt) >= 1 &&
+    is.list(tt[[1]]) && length(tt[[1]]) >= 1 &&
+    is.data.frame(tt[[1]][[1]]) && NROW(tt[[1]][[1]]) > 0
+}
+
+# P(I) / (P(I) + P(E)) from a first-token logprobs data.frame; NA if no signal
+probFromFirstToken <- function(ft) {
+  tok <- trimws(tolower(ft$top5_tokens))
+  prob_i <- sum(as.numeric(ft$probability[tok == "i"]))
+  prob_e <- sum(as.numeric(ft$probability[tok == "e"]))
+  if (prob_i + prob_e > 0) prob_i / (prob_i + prob_e) else NA_real_
+}
+
+# Save the user's RNG state so functions that call set.seed() can restore it
+# on exit instead of clobbering the global random number stream.
+preserveSeed <- function() {
+  if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+    get(".Random.seed", envir = globalenv(), inherits = FALSE)
+  } else {
+    NULL
+  }
+}
+
+restoreSeed <- function(old_seed) {
+  if (is.null(old_seed)) {
+    if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+      rm(".Random.seed", envir = globalenv())
+    }
+  } else {
+    assign(".Random.seed", old_seed, envir = globalenv())
+  }
+  invisible(NULL)
+}
+
+# ---------------------------------------------------------------------------
+# Logprob parsing
+# ---------------------------------------------------------------------------
+
+getLLMLogprobs <- function(raw_content) {
 
   length <- length(raw_content$choices[[1]]$logprobs$content)
   logprobs_dfs <- vector("list", length = length)
@@ -32,7 +112,10 @@ getLLMLogprobs <- function(raw_content,
   return(logprobs_dfs)
 }
 
-# LLM helper function
+# ---------------------------------------------------------------------------
+# API key handling
+# ---------------------------------------------------------------------------
+
 getApiKey <- function(service_name, update_key = FALSE) {
   # Check if running on shinyapps.io
   shinyapps <- Sys.getenv("R_CONFIG_ACTIVE") == "shinyapps"
@@ -58,21 +141,44 @@ getApiKey <- function(service_name, update_key = FALSE) {
     }
   }
 
+  # Allow the environment variable to satisfy the lookup everywhere, so
+  # non-interactive sessions (e.g. scripts, Rmd) work without a keyring.
+  api_key <- Sys.getenv("OPENAI_API_KEY")
+  if (nzchar(api_key) && !update_key) {
+    return(api_key)
+  }
+
   # If not found in environment variable and not in CI, attempt to retrieve from keyring
   if (!ci && !shinyapps && (update_key || nrow(keyring::key_list(service = service_name)) == 0)) {
-    cat("To use this functionality, an API key needs to be set.\n")
-    cat("Please follow these steps to resolve the issue:\n")
-    cat("1. Create an API key on https://platform.openai.com/account/api-keys \n")
-    cat("2. Please enter your API key below to add/update it.")
+    if (!interactive()) {
+      stop("No OpenAI API key found. Set the OPENAI_API_KEY environment variable, ",
+           "or run this function in an interactive session to store a key in the keyring.")
+    }
+    message("To use this functionality, an API key needs to be set.")
+    message("Please follow these steps to resolve the issue:")
+    message("1. Create an API key on https://platform.openai.com/account/api-keys")
+    message("2. Please enter your API key below to add/update it.")
     answer <- readline("API key = ")
+    if (!nzchar(trimws(answer))) {
+      stop("No API key entered; aborting.")
+    }
     keyring::key_set_with_value(service = service_name, username = "user", password = answer)
   }
 
-  return(keyring::key_get(service = service_name, username = "user"))
+  key <- tryCatch(
+    keyring::key_get(service = service_name, username = "user"),
+    error = function(e) {
+      stop("Could not retrieve an OpenAI API key from the keyring (", conditionMessage(e),
+           "). Set the OPENAI_API_KEY environment variable, or call the function with ",
+           "`update_key = TRUE` in an interactive session to store a key.", call. = FALSE)
+    }
+  )
+  key
 }
 
-#  v1 responses
-`%||%` <- function(x, y) if (is.null(x)) y else x
+# ---------------------------------------------------------------------------
+# GPT-5 /v1/responses parsing
+# ---------------------------------------------------------------------------
 
 # Extract assistant text from /v1/responses (GPT-5); robust across shapes
 .get_text_from_responses <- function(r) {
@@ -103,7 +209,14 @@ getApiKey <- function(service_name, update_key = FALSE) {
   NA_character_
 }
 
-# main function to call LLM
+# ---------------------------------------------------------------------------
+# Main function to call the LLM
+# ---------------------------------------------------------------------------
+
+# Note: GPT-5 models are served via /v1/responses, which does not accept
+# temperature/top_p/logprobs. `reasoning_effort` (default "minimal") and
+# `max_output_tokens` bound the cost of reasoning tokens; the elicitation
+# functions only ever need a single decision character.
 callLLM <- function(
     prompt,
     LLM_model = "gpt-4o",
@@ -115,15 +228,25 @@ callLLM <- function(
     timeout_sec = 60,
     system_prompt = NULL,
     raw_output = TRUE,
-    update_key = FALSE
+    update_key = FALSE,
+    reasoning_effort = c("minimal", "low", "medium", "high"),
+    max_output_tokens = NULL
 ) {
-  # Allowed models
-  allowed_models <- c(
+  reasoning_effort <- match.arg(reasoning_effort)
+
+  # Models this package has been tested with
+  known_models <- c(
     "gpt-5", "gpt-5-mini", "gpt-5-nano",
     "gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"
   )
-  if (!LLM_model %in% allowed_models) {
-    stop("Only the following models are supported: ", paste(allowed_models, collapse = ", "))
+  if (!LLM_model %in% known_models) {
+    if (grepl("^gpt-", LLM_model)) {
+      warning("Model '", LLM_model, "' has not been tested with bgmElicit; proceeding anyway. ",
+              "Tested models: ", paste(known_models, collapse = ", "), ".")
+    } else {
+      stop("Only OpenAI GPT models are supported. Tested models: ",
+           paste(known_models, collapse = ", "))
+    }
   }
 
   api_key <- getApiKey("openai", update_key = isTRUE(update_key))
@@ -131,7 +254,7 @@ callLLM <- function(
 
   if (is_gpt5) {
     # ---------- GPT-5 via /v1/responses ----------
-    # Minimal & tenant-safe: model + input (no temperature/top_p/logprobs/max_output_tokens)
+    # temperature/top_p/logprobs are not supported on this endpoint
     endpoint <- "https://api.openai.com/v1/responses"
 
     # Inline system prompt into input for simplicity/compatibility
@@ -143,8 +266,12 @@ callLLM <- function(
 
     request_body <- list(
       model = LLM_model,
-      input = combined_input
+      input = combined_input,
+      reasoning = list(effort = reasoning_effort)
     )
+    if (!is.null(max_output_tokens)) {
+      request_body$max_output_tokens <- max_output_tokens
+    }
 
     request <- httr::RETRY(
       "POST", endpoint,
@@ -222,8 +349,7 @@ callLLM <- function(
     output_text <- resp$choices[[1]]$message$content
 
     if (raw_output && isTRUE(logprobs)) {
-      # Uses your existing chat/completions parser
-      top5_logprobs <- getLLMLogprobs(raw_content = resp, LLM_model = LLM_model)
+      top5_logprobs <- getLLMLogprobs(raw_content = resp)
       return(list(
         raw_content = list(
           LLM_model     = resp$model %||% LLM_model,
@@ -258,44 +384,28 @@ callLLM <- function(
   }
 }
 
-
-
-# Helper function to parse decision from LLM output
-parseDecision <- function(content) {
-  # Simple parsing - look for "I" or "E" in the output
-  content <- tolower(trimws(content))
-  if (grepl("i", content)) {
-    return("I")
-  } else if (grepl("e", content)) {
-    return("E")
-  } else {
-    return(NA)  # Handle cases where output doesn't contain I/E
-  }
-}
-
-
-
-# function to estimate beta-binomial parameters
+# ---------------------------------------------------------------------------
+# Beta-binomial parameter estimation
+# ---------------------------------------------------------------------------
 
 estimate_beta_binomial <- function(x, n, method = c("mle", "mom"), force_mom = FALSE) {
   method <- match.arg(method)
+  if (isTRUE(force_mom)) method <- "mom"
 
   # the model is
   # p ~ Beta(alpha,beta) x|p ~ Binomial(n,p)
   # where:
-  # - "n" is the number of premutations
-  # - "x" is the vector of success (sum of I's) across iterations (or permutations)
+  # - "n" is the number of permutations
+  # - "x" is the vector of successes (sum of I's) across iterations (or permutations)
 
   if (any(x < 0) || any(x > n)) {
     stop("All values of x must be between 0 and n.")
   }
 
-  # alpha and beta estimated using method of moments (mom)
-  # Mean: E[X] = E[E[X|p]] = E[n * p] = n * E[p] = n * ( alpha/(alpha + beta) )
-  # Second factorial moment: E[X(X-1)] = n*(n-1) * [(alpha*(alpha+1))/( (alpha+beta)*(alpha+beta+1) )]
-
-  # Only compute MoM when we actually need to return MoM (and are not forcing MLE)
-  if (method == "mom" && !force_mom) {
+  if (method == "mom") {
+    # alpha and beta estimated using method of moments (mom)
+    # Mean: E[X] = E[E[X|p]] = E[n * p] = n * E[p] = n * ( alpha/(alpha + beta) )
+    # Second factorial moment: E[X(X-1)] = n*(n-1) * [(alpha*(alpha+1))/( (alpha+beta)*(alpha+beta+1) )]
     m1  <- mean(x)/n
     m2f <- mean(x*(x-1))/(n*(n-1))
 
@@ -308,13 +418,14 @@ estimate_beta_binomial <- function(x, n, method = c("mle", "mom"), force_mom = F
       beta  <- (1 - m1) * s
     }
 
-    # For MoM return, we don't need optimizer init; just return below.
-    init <- c(0, 0) # placeholder, unused in this branch
-  } else {
-    # Skipping MoM computation; set a reasonable starting point for MLE directly
-    alpha <- beta <- NA
-    init <- log(c(mean(x) + 1, n - mean(x) + 1))  # reasonable starting point
+    if (is.na(alpha) || is.na(beta) || alpha <= 0 || beta <= 0) {
+      warning("Invalid MoM estimates (possibly due to low variance).")
+    }
+    return(list(mom = c("alpha" = alpha, "beta" = beta)))
   }
+
+  # ---------- maximum likelihood ----------
+  init <- log(c(mean(x) + 1, n - mean(x) + 1))  # reasonable starting point
 
   # negative loglikelihood
   beta_binom_fun <- function(pars, x, n){
@@ -323,9 +434,6 @@ estimate_beta_binomial <- function(x, n, method = c("mle", "mom"), force_mom = F
 
     # value of the loglikelihood calculated at pars (excluding log(choose(n,x))
     value <- sum(lgamma(x+alpha)+lgamma(n-x+beta)-lgamma(n+alpha+beta)-lgamma(alpha)-lgamma(beta)+lgamma(alpha+beta))
-
-    # digamma and trigamma functions used in first and second
-    # perhaps computing them once here and then use them later?
 
     # Score function
     gradient <- rep(0.0,2)
@@ -342,19 +450,8 @@ estimate_beta_binomial <- function(x, n, method = c("mle", "mom"), force_mom = F
     return(list(value = -value, gradient = -gradient, hessian = -hessian)) # return negative because negative loglikelihood
   }
 
-  # output depending on what method is requested
-  if (method == "mle" || (force_mom && method == "mom")) {
-    # Run optimizer only in the MLE branch
-    fit <- trust::trust(objfun = beta_binom_fun, parinit = init, x = x, n = n, rinit = 0.1, rmax = 10.0)
-    alpha_mle <- exp(fit$argument[1])
-    beta_mle  <- exp(fit$argument[2])
-    return(list(mle = c("alpha" = alpha_mle, "beta" = beta_mle)))
-  }
-  if (method == "mom") {
-    # If MoM invalid, keep your original warning + NA behavior
-    if ((alpha <= 0 || beta <= 0) || (is.na(alpha) || is.na(beta))) {
-      warning("Invalid MoM estimates (possibly due to low variance).")
-    }
-    return(list(mom = c("alpha" = alpha, "beta" = beta)))
-  }
+  fit <- trust::trust(objfun = beta_binom_fun, parinit = init, x = x, n = n, rinit = 0.1, rmax = 10.0)
+  alpha_mle <- exp(fit$argument[1])
+  beta_mle  <- exp(fit$argument[2])
+  list(mle = c("alpha" = alpha_mle, "beta" = beta_mle))
 }

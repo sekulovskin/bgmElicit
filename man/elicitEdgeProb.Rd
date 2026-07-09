@@ -5,7 +5,7 @@
 \title{Elicit Prior Edge-Inclusion Probabilities with a LLM}
 \usage{
 elicitEdgeProb(
-  context,
+  context = NULL,
   variable_list,
   LLM_model = "gpt-5",
   update_key = FALSE,
@@ -20,8 +20,8 @@ elicitEdgeProb(
 \item{context}{Optional character string with study background or domain
 context to incorporate into the prompt. Defaults to \code{NULL}.}
 
-\item{variable_list}{Character vector of variable (node) names; must contain
-at least three variables.}
+\item{variable_list}{Character vector of unique variable (node) names; must
+contain at least three variables.}
 
 \item{LLM_model}{Character string selecting the LLM. Options include
 \code{"gpt-4"}, \code{"gpt-4o"}, \code{"gpt-4-turbo"}, \code{"gpt-3.5-turbo"}, \code{"gpt-5"},
@@ -35,7 +35,8 @@ to evaluate. If \code{NULL}, five permutations are used by default. Maximum is
 \code{50}.}
 
 \item{seed}{Integer random seed for reproducibility of permutations.
-Default is \code{123}.}
+The state of the random number generator in the calling session is
+preserved and restored on exit. Default is \code{123}.}
 
 \item{main_prompt}{Optional length-1 character vector used as the LLM system
 prompt. If \code{NULL}, a default is used.}
@@ -47,7 +48,7 @@ Default is \code{TRUE}.}
 first decision token. Ignored for models that do not support logprobs
 ( \code{"gpt-5"}, \code{"gpt-5-mini"},
 and \code{"gpt-5-nano"}).
-Default is \code{FALSE}.}
+Default is \code{TRUE}.}
 }
 \value{
 A list of class \code{"elicitEdgeProb"} with components:
@@ -93,6 +94,11 @@ supported by the selected model, or if the log-probabilities for \code{"I"}
 and \code{"E"} are both zero, the function falls back to using the hard decision
 from the text output. If the text output is not interpretable, a default
 probability of \code{0.5} is assigned.
+
+Note that the GPT-5 family of models does not support setting the sampling
+temperature, so repeated elicitations with these models may not be exactly
+reproducible even with a fixed \code{seed} (the seed only controls the
+permutations of the pair order).
 }
 \examples{
 \dontrun{

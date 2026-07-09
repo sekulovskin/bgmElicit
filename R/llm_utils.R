@@ -214,9 +214,7 @@ getApiKey <- function(service_name, update_key = FALSE) {
 # ---------------------------------------------------------------------------
 
 # Note: GPT-5 models are served via /v1/responses, which does not accept
-# temperature/top_p/logprobs. `reasoning_effort` (default "minimal") and
-# `max_output_tokens` bound the cost of reasoning tokens; the elicitation
-# functions only ever need a single decision character.
+# temperature/top_p/logprobs; requests are kept minimal (model + input).
 callLLM <- function(
     prompt,
     LLM_model = "gpt-4o",
@@ -228,12 +226,8 @@ callLLM <- function(
     timeout_sec = 60,
     system_prompt = NULL,
     raw_output = TRUE,
-    update_key = FALSE,
-    reasoning_effort = c("minimal", "low", "medium", "high"),
-    max_output_tokens = NULL
+    update_key = FALSE
 ) {
-  reasoning_effort <- match.arg(reasoning_effort)
-
   # Models this package has been tested with
   known_models <- c(
     "gpt-5", "gpt-5-mini", "gpt-5-nano",
@@ -254,7 +248,7 @@ callLLM <- function(
 
   if (is_gpt5) {
     # ---------- GPT-5 via /v1/responses ----------
-    # temperature/top_p/logprobs are not supported on this endpoint
+    # Minimal & tenant-safe: model + input (no temperature/top_p/logprobs/max_output_tokens)
     endpoint <- "https://api.openai.com/v1/responses"
 
     # Inline system prompt into input for simplicity/compatibility
@@ -266,12 +260,8 @@ callLLM <- function(
 
     request_body <- list(
       model = LLM_model,
-      input = combined_input,
-      reasoning = list(effort = reasoning_effort)
+      input = combined_input
     )
-    if (!is.null(max_output_tokens)) {
-      request_body$max_output_tokens <- max_output_tokens
-    }
 
     request <- httr::RETRY(
       "POST", endpoint,

@@ -2,15 +2,15 @@
 
 The package `bgmElicit` provides tools to elicit prior edge inclusion probabilities 
 using Large Language Models (LLMs) for analyzing Markov random field graphical models 
-within the Bayesian graphical modeling (BGM) framework. The methodology of the package is presented in Sekulovski, Waaijers, & Arena (2025). Currently, the package supports
+within the Bayesian graphical modeling (BGM) framework. The methodology of the package is presented in Sekulovski, Waaijers, & Arena (in press). Currently, the package supports
 models provided by OpenAI. The elicited
 prior can then be used in the **[`bgms`](https://cran.r-project.org/web/packages/bgms/index.html)**,
 **[`BDgraph`](http://cran.r-project.org/web/packages/BDgraph/index.html)** and **[`easybgm`](https://cran.r-project.org/web/packages/easybgm/index.html)**
 R packages for Bayesian graphical modeling.
 
-The output from the main function, `elicitEdgeProb` (or its lightweight counterpart `elicitEdgeProbLite`), which elicit prior inclusion 
+The output from the main function, `elicitEdgeProb` (or its lightweight counterpart `elicitEdgeProbLite`), which elicits prior inclusion 
 probabilities under the Bernoulli prior, can also be used to estimate the parameters of a Beta-Bernoulli
-e Stochastic-Block model (SBM) prior.
+or a Stochastic Block model (SBM) prior.
 
 This package is inspired by and partly based on the [`theoraizer`](https://github.com/MeikeWaaijers/theoraizer) package by Meike Waaijers.
 
@@ -37,7 +37,7 @@ Using the main function (recommended):
 ```r
 library(bgmElicit)
 
-result_lite <- elicitEdgeProb(
+result <- elicitEdgeProb(
   context = paste(
     "This study examines the relationship between screen time,",
     "physical activity, and cardiovascular health."
@@ -48,7 +48,7 @@ result_lite <- elicitEdgeProb(
   n_perm = 2
 )
 
-print(result_lite$relation_df)
+print(result$relation_df)
 ```
 
 Using the cheaper lite function
@@ -73,9 +73,9 @@ print(result_lite$relation_df)
 llm_out <- elicitEdgeProb(
   context = "Exploring cognitive symptoms and mood in depression",
   variable_list = c("Concentration", "Sadness", "Sleep"),
-  n_rep = 3
+  n_perm = 5
 )
-beta_params <- betaBinParameters(llm_out)
+beta_params <- betaBernParameters(llm_out)
 print(beta_params)
 ```
 
@@ -85,7 +85,7 @@ print(beta_params)
 llm_out <- elicitEdgeProb(
   context = "Exploring cognitive symptoms and mood in depression",
   variable_list = c("Concentration", "Sadness", "Sleep"),
-  n_rep = 3
+  n_perm = 5
 )
 cl <- sbmClusters(
   llmobject = llm_out,
@@ -97,4 +97,4 @@ cl$elicited_no_clusters
 
 
 # References
-Sekulovski, N., Waaijers, M., & Arena, G. (2025). LLM-based prior elicitation for Bayesian graphical modeling. Center for Open Science. [https://doi.org/10.31234/osf.io/k2twq_v1](https://doi.org/10.31234/osf.io/k2twq_v1)
+Sekulovski, N., Waaijers, M., & Arena, G. (in press). LLM-based prior elicitation for Bayesian graphical modeling. *British Journal of Mathematical and Statistical Psychology* https://doi.org/10.1111/bmsp.700

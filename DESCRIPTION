@@ -5,23 +5,20 @@ Authors@R: c(
     person("Nikola", "Sekulovski", email = "n.sekulovski@uva.nl", role = c("aut", "cre")),
     person("Meike", "Waaijers", role = "ctb"),
     person("Giuseppe", "Arena", role = "ctb"))
-Description: Provides functions for eliciting prior edge inclusion probabilities in Bayesian graphical models (BGMs) using large language models (LLMs). The package allows users to specify variable sets and optional contextual information to query LLMs for conditional associations between variable pairs. It includes both a full and simplified elicitation function. It also provides the option to elicit the parameters for a Beta-Bernoulli ans the Stochastic Block model priors on the network structure.
+Description: Provides functions for eliciting prior edge inclusion probabilities in Bayesian graphical models (BGMs) using large language models (LLMs). The package allows users to specify variable sets and optional contextual information to query LLMs for conditional associations between variable pairs. It includes both a full and simplified elicitation function. It also provides the option to elicit the parameters for a Beta-Bernoulli and the Stochastic Block model priors on the network structure.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 Imports:
-    dplyr,
-    stringr,
     keyring,
     httr,
     igraph,
     jsonlite,
-    trust
+    trust,
+    utils
 URL: https://github.com/sekulovskin/bgmElicit
 BugReports: https://github.com/sekulovskin/bgmElicit/issues
-Suggests: 
-    testthat (>= 3.0.0),
-    mockery,
-    withr
+Suggests:
+    testthat (>= 3.1.7)
 Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0

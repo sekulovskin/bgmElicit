@@ -29,8 +29,10 @@ of the Beta-Bernoulli structure prior in the package \link[easybgm:easybgm]{easy
 }
 \details{
 The function extracts the number of included edges (\code{"I"}) for each permutation or repetition
-from the LLM output and fits a Beta-Bernoulli distribution to these counts. It estimates the
-shape parameters \code{alpha} and \code{beta} based on the specified method. The available estimation methods are:
+from the LLM output and fits a Beta-Bernoulli distribution to these counts. A response is
+counted as an inclusion when its first non-whitespace character is \code{"I"} or \code{"i"}. It estimates
+the shape parameters \code{alpha} and \code{beta} based on the specified method. The available estimation
+methods are:
 \itemize{
 \item \code{"mle"}: Maximum likelihood estimation.
 \item \code{"mom"}: Method of moments estimation.
@@ -43,7 +45,7 @@ may be unreliable in such cases.
 llm_out <-  elicitEdgeProb(
   context = "Exploring cognitive symptoms and mood in depression",
   variable_list = c("Concentration", "Sadness", "Sleep"),
-  n_rep = 3
+  n_perm = 5
 )
 beta_params <- betaBernParameters(llm_out)
 print(beta_params)

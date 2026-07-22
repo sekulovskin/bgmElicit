@@ -1,4 +1,4 @@
-#' Detect Communities from from LLM Output
+#' Detect Communities from LLM Output
 #'
 #' This function estimates the number of clusters (communities) and the node-cluster membership in the
 #' network implied from the edge inclusion probabilities elicited using the functions `"elicitEdgeProb"` or `"elicitEdgeProbLite"`.
@@ -19,7 +19,7 @@
 #' returned as \code{NA} in the original node order. If the elicitation object was generated from
 #' only a small number of permutations (e.g., < 5), cluster estimates may be unstable.
 #'
-#' The estimated number of communities can inform the choice of the parameter `lambda`in the SBM prior,
+#' The estimated number of communities can inform the choice of the parameter `lambda` in the SBM prior,
 #' which controls the expected number of clusters. For a single cluster, `lambda` <= 1 is appropriate,
 #' while for two, three, and four clusters, `lambda` should be set to 1.59, 2.82, and 3.92, respectively.
 #' For five or more clusters, `lambda` can be set equal to the elicited number of clusters.
@@ -65,7 +65,7 @@
 #' llm_out <-  elicitEdgeProb(
 #'   context = "Exploring cognitive symptoms and mood in depression",
 #'   variable_list = c("Concentration", "Sadness", "Sleep"),
-#'   n_rep = 3
+#'   n_perm = 3
 #' )
 #' cl <- sbmClusters(
 #'   llmobject = llm_out,
@@ -76,8 +76,8 @@
 #' }
 #'
 #' @importFrom igraph graph_from_adjacency_matrix cluster_louvain cluster_walktrap
-#'   cluster_fast_greedy cluster_infomap cluster_label_prop cluster_edge_betweenness
-#'   degree delete_vertices vcount membership modularity components
+#' @importFrom igraph cluster_fast_greedy cluster_infomap cluster_label_prop cluster_edge_betweenness
+#' @importFrom igraph degree delete_vertices vcount membership modularity components
 #' @seealso \link[easybgm:easybgm]{easybgm}, \link[igraph:igraph]{igraph}
 #' @export
 
@@ -93,9 +93,6 @@ sbmClusters <- function(
     walktrap_steps = 4,
     infomap_trials = 10
 ) {
-  if (!requireNamespace("igraph", quietly = TRUE))
-    stop("Please install the 'igraph' package.")
-
   algorithm <- match.arg(algorithm)
 
   #  Class & structure checks
@@ -108,6 +105,19 @@ sbmClusters <- function(
 
   mat <- llmobject$inclusion_probability_matrix
 
+  if (!is.matrix(mat) || !is.numeric(mat)) {
+    stop("`inclusion_probability_matrix` must be a numeric matrix.")
+  }
+  if (nrow(mat) != ncol(mat)) {
+    stop("`inclusion_probability_matrix` must be square.")
+  }
+  if (!isSymmetric(unname(mat), tol = 1e-8)) {
+    stop("`inclusion_probability_matrix` must be symmetric.")
+  }
+  if (anyNA(mat) || any(mat < 0) || any(mat > 1)) {
+    stop("`inclusion_probability_matrix` must contain values in [0, 1] with no missing values.")
+  }
+
   # Optional: warn if few permutations are present
   if (!is.null(llmobject$raw_LLM) && !is.null(llmobject$raw_LLM$permutation)) {
     n_perms <- length(unique(llmobject$raw_LLM$permutation))
@@ -118,6 +128,12 @@ sbmClusters <- function(
   }
 
   n <- nrow(mat)
+
+  # Restore the caller's RNG state on exit (set.seed may be used below)
+  if (!is.null(seed)) {
+    old_seed <- preserveSeed()
+    on.exit(restoreSeed(old_seed), add = TRUE)
+  }
 
   # Threshold: <th -> 0, >th -> 1; ties handled via branching
   adj_base <- matrix(0L, n, n)

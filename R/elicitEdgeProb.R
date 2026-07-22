@@ -29,10 +29,15 @@
 #' from the text output. If the text output is not interpretable, a default
 #' probability of `0.5` is assigned.
 #'
+#' Note that the GPT-5 family of models does not support setting the sampling
+#' temperature, so repeated elicitations with these models may not be exactly
+#' reproducible even with a fixed `seed` (the seed only controls the
+#' permutations of the pair order).
+#'
 #' @param context Optional character string with study background or domain
 #'   context to incorporate into the prompt. Defaults to `NULL`.
-#' @param variable_list Character vector of variable (node) names; must contain
-#'   at least three variables.
+#' @param variable_list Character vector of unique variable (node) names; must
+#'   contain at least three variables.
 #' @param LLM_model Character string selecting the LLM. Options include
 #'   `"gpt-4"`, `"gpt-4o"`, `"gpt-4-turbo"`, `"gpt-3.5-turbo"`, `"gpt-5"`,
 #'   `"gpt-5-mini"`, and `"gpt-5-nano"`.
@@ -42,7 +47,8 @@
 #'   to evaluate. If `NULL`, five permutations are used by default. Maximum is
 #'   `50`.
 #' @param seed Integer random seed for reproducibility of permutations.
-#'   Default is `123`.
+#'   The state of the random number generator in the calling session is
+#'   preserved and restored on exit. Default is `123`.
 #' @param main_prompt Optional length-1 character vector used as the LLM system
 #'   prompt. If `NULL`, a default is used.
 #' @param display_progress Logical; if `TRUE`, show progress messages.
@@ -51,7 +57,7 @@
 #'   first decision token. Ignored for models that do not support logprobs
 #'   ( `"gpt-5"`, `"gpt-5-mini"`,
 #'   and `"gpt-5-nano"`).
-#'   Default is `FALSE`.
+#'   Default is `TRUE`.
 #'
 #' @return A list of class `"elicitEdgeProb"` with components:
 #' \describe{
@@ -81,7 +87,7 @@
 #' @seealso \link[easybgm:easybgm]{easybgm}
 #' @export
 
-elicitEdgeProb <- function(context,
+elicitEdgeProb <- function(context = NULL,
                            variable_list,
                            LLM_model = "gpt-5",
                            update_key = FALSE,
@@ -90,48 +96,20 @@ elicitEdgeProb <- function(context,
                            main_prompt = NULL,
                            display_progress = TRUE,
                            logprobs = TRUE) {
-  # ---------- helpers ----------
-  `%||%` <- function(x, y) if (is.null(x)) y else x
-
-  model_supports_logprobs <- function(m) {
-    grepl("^gpt-4o$|^gpt-4-turbo$|^gpt-4$|^gpt-3\\.5-turbo$", m)
-  }
-
-  extract_decision_char <- function(txt) {
-    ch <- substr(trimws(txt %||% ""), 1, 1)
-    if (!nzchar(ch)) return("?")
-    ch <- tolower(ch)
-    if (ch %in% c("i", "e")) ch else "?"
-  }
-
-  # safely fetch the first-token logprobs data.frame if present & non-empty
-  safe_first_token_df <- function(topk_list) {
-    if (is.null(topk_list) || !is.list(topk_list) || length(topk_list) < 1) return(NULL)
-    ft <- topk_list[[1]]
-    if (is.null(ft) || !is.data.frame(ft) || NROW(ft) == 0) return(NULL)
-    ft
-  }
-
-  # NEW: safe accessor to avoid [[idx]] on NULL/short lists
-  get_topk_for <- function(lst, idx) {
-    if (is.null(lst)) return(NULL)
-    if (!is.list(lst)) return(NULL)
-    if (length(lst) < idx) return(NULL)
-    lst[[idx]]
-  }
-
   # ---------- validations ----------
-  stopifnot(is.character(context) | is.null(context))
-  stopifnot(is.vector(variable_list) && length(variable_list) >= 3)
-  stopifnot(all(sapply(variable_list, is.character)))
+  if (!is.null(context) && !is.character(context)) {
+    stop("`context` must be NULL or a character string.")
+  }
+  if (!is.null(context)) context <- paste(context, collapse = " ")
+  if (!is.character(variable_list) || length(variable_list) < 3) {
+    stop("`variable_list` must be a character vector with at least three variables.")
+  }
+  if (anyDuplicated(variable_list)) {
+    stop("`variable_list` must not contain duplicated variable names.")
+  }
 
   # ---------- make all unordered pairs ----------
-  pairs_df <- data.frame(var1 = character(), var2 = character())
-  for (i in 1:(length(variable_list) - 1)) {
-    for (j in (i + 1):length(variable_list)) {
-      pairs_df <- rbind(pairs_df, data.frame(var1 = variable_list[[i]], var2 = variable_list[[j]]))
-    }
-  }
+  pairs_df <- makePairsDf(variable_list)
   n_pairs <- nrow(pairs_df)
 
   # ---------- permutations ----------
@@ -139,14 +117,17 @@ elicitEdgeProb <- function(context,
     n_perm <- 5
     message("The n_perm argument was not specified. The function will proceed using five permutations of the variable pair order.")
   }
-  if (!is.null(n_perm) && n_perm <= 0) stop("n_perm cannot be zero or less than zero.")
-  if (n_perm > 50) stop("Requested `n_perm` (", n_perm, ") exceeds maximum possible permutations which is set to 50.")
+  if (n_perm <= 0) stop("n_perm cannot be zero or less than zero.")
+  if (n_perm > 50) stop("Requested `n_perm` (", n_perm, ") exceeds the maximum, which is set to 50.")
 
+  old_seed <- preserveSeed()
+  on.exit(restoreSeed(old_seed), add = TRUE)
   set.seed(seed)
   perms <- t(replicate(n_perm, sample(1:n_pairs, n_pairs, replace = FALSE), simplify = TRUE))
 
   # ---------- config ----------
-  use_logprobs <- logprobs && model_supports_logprobs(LLM_model)
+  use_logprobs <- logprobs && modelSupportsLogprobs(LLM_model)
+  update_key_requested <- update_key
 
   raw_LLM <- vector("list", n_perm)
   logprobs_LLM <- vector("list", n_perm)
@@ -227,14 +208,7 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables and
       )
 
       # Store logprobs only if available AND non-empty
-      has_logprobs_df <-
-        use_logprobs &&
-        !is.null(LLM_output$top5_tokens) &&
-        length(LLM_output$top5_tokens) >= 1 &&
-        is.data.frame(LLM_output$top5_tokens[[1]][[1]]) &&
-        NROW(LLM_output$top5_tokens[[1]][[1]]) > 0
-
-      if (has_logprobs_df) {
+      if (use_logprobs && hasLogprobsDf(LLM_output)) {
         logprobs_LLM_perm[[pair_order]] <- LLM_output$top5_tokens[[1]]
         mode_used_mat[pair_idx, perm_idx] <- "logprobs"
       } else {
@@ -243,7 +217,7 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables and
       }
 
       # Chain decision for next prompts
-      decision_char <- extract_decision_char(content_txt)
+      decision_char <- extractDecisionChar(content_txt)
       previous_decisions[[pair_order]] <- list(var1 = var1, var2 = var2, decision = decision_char)
     }
 
@@ -260,26 +234,21 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables and
       pair_idx <- perms[perm_idx, pair_order]
 
       # SAFE: never index [[pair_order]] on a NULL/short list
-      topk_list_for_call <- get_topk_for(logprobs_LLM[[perm_idx]], pair_order)
-      first_token_df <- safe_first_token_df(topk_list_for_call)
+      topk_list_for_call <- getTopkFor(logprobs_LLM[[perm_idx]], pair_order)
+      first_token_df <- safeFirstTokenDf(topk_list_for_call)
 
       if (!is.null(first_token_df)) {
         # Use logprobs to form P(I) / (P(I)+P(E))
-        prob_i <- 0; prob_e <- 0
-        for (m in seq_len(nrow(first_token_df))) {
-          token <- trimws(tolower(first_token_df$top5_tokens[m]))
-          if (token == "i") prob_i <- prob_i + as.numeric(first_token_df$probability[m])
-          if (token == "e") prob_e <- prob_e + as.numeric(first_token_df$probability[m])
-        }
-        if (prob_i + prob_e > 0) {
-          prob_matrix[pair_idx, perm_idx] <- prob_i / (prob_i + prob_e)
+        prob <- probFromFirstToken(first_token_df)
+        if (!is.na(prob)) {
+          prob_matrix[pair_idx, perm_idx] <- prob
         } else {
           prob_matrix[pair_idx, perm_idx] <- 0.5; n_default_05 <- n_default_05 + 1
         }
       } else {
         # Fallback: hard decision from text
         temp_text <- raw_LLM[[perm_idx]][[pair_order]][["content"]] %||% ""
-        dchr <- tolower(substr(trimws(temp_text), 1, 1))
+        dchr <- extractDecisionChar(temp_text)
         if (dchr == "i") {
           prob_matrix[pair_idx, perm_idx] <- 1
         } else if (dchr == "e") {
@@ -306,57 +275,38 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables and
   # ---------- flatten raw_LLM for output ----------
   output <- list()
   tryCatch({
-    flattened_df_raw_LLM <- data.frame(
-      permutation = integer(),
-      pair_order  = integer(),
-      pair_index  = integer(),
-      var1 = character(),
-      var2 = character(),
-      LLM_model = character(),
-      prompt = character(),
-      system_prompt = character(),
-      content = character(),
-      mode_used = character(),
-      finish_reason = character(),
-      prompt_tokens = numeric(),
-      answer_tokens = numeric(),
-      total_tokens = numeric(),
-      error = character(),
-      stringsAsFactors = FALSE
-    )
-
+    rows <- vector("list", n_perm * n_pairs)
+    row_i <- 0
     for (perm_idx in seq_along(raw_LLM)) {
       for (pair_order in seq_along(raw_LLM[[perm_idx]])) {
         pair_idx <- perms[perm_idx, pair_order]
         temp <- raw_LLM[[perm_idx]][[pair_order]]
 
-        flattened_df_raw_LLM <- rbind(
-          flattened_df_raw_LLM,
-          data.frame(
-            permutation   = perm_idx,
-            pair_order    = pair_order,
-            pair_index    = pair_idx,
-            var1          = pairs_df[pair_idx, 1],
-            var2          = pairs_df[pair_idx, 2],
-            LLM_model     = temp[["LLM_model"]] %||% LLM_model,
-            prompt        = temp[["prompt"]] %||% "",
-            system_prompt = temp[["system_prompt"]] %||% "",
-            content       = temp[["content"]] %||% "",
-            mode_used     = mode_used_mat[pair_idx, perm_idx],
-            finish_reason = temp[["finish_reason"]] %||% NA_character_,
-            prompt_tokens = as.numeric(temp[["prompt_tokens"]] %||% NA),
-            answer_tokens = as.numeric(temp[["answer_tokens"]] %||% NA),
-            total_tokens  = as.numeric(temp[["total_tokens"]] %||% NA),
-            error         = ifelse(is.null(temp[["error"]]), NA, temp[["error"]]),
-            stringsAsFactors = FALSE
-          )
+        row_i <- row_i + 1
+        rows[[row_i]] <- data.frame(
+          permutation   = perm_idx,
+          pair_order    = pair_order,
+          pair_index    = pair_idx,
+          var1          = pairs_df[pair_idx, 1],
+          var2          = pairs_df[pair_idx, 2],
+          LLM_model     = temp[["LLM_model"]] %||% LLM_model,
+          prompt        = temp[["prompt"]] %||% "",
+          system_prompt = temp[["system_prompt"]] %||% "",
+          content       = temp[["content"]] %||% "",
+          mode_used     = mode_used_mat[pair_idx, perm_idx],
+          finish_reason = temp[["finish_reason"]] %||% NA_character_,
+          prompt_tokens = as.numeric(temp[["prompt_tokens"]] %||% NA),
+          answer_tokens = as.numeric(temp[["answer_tokens"]] %||% NA),
+          total_tokens  = as.numeric(temp[["total_tokens"]] %||% NA),
+          error         = ifelse(is.null(temp[["error"]]), NA, temp[["error"]]),
+          stringsAsFactors = FALSE
         )
       }
     }
-    output$raw_LLM <- flattened_df_raw_LLM
+    output$raw_LLM <- do.call(rbind, rows[seq_len(row_i)])
   }, error = function(e) {
-    cat(paste0("Warning: Unable to return raw LLM output -> ", e$message, "."),
-        "Only part of the output is returned.", sep = "\n")
+    message("Warning: Unable to return raw LLM output -> ", e$message, ". ",
+            "Only part of the output is returned.")
   })
 
   # ---------- diagnostics ----------
@@ -373,7 +323,7 @@ Only output a single character: 'I' or 'E'. Consider the remaining variables and
     context = context,
     variable_list = variable_list,
     LLM_model = LLM_model,
-    update_key = update_key,
+    update_key = update_key_requested,
     n_perm = n_perm,
     seed = seed,
     n_default_05 = n_default_05,

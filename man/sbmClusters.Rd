@@ -80,10 +80,16 @@ Optionally, isolated vertices are removed prior to clustering and their membersh
 returned as \code{NA} in the original node order. If the elicitation object was generated from
 only a small number of permutations (e.g., < 5), cluster estimates may be unstable.
 
-The estimated number of communities can inform the choice of the parameter \code{lambda} in the SBM prior,
-which controls the expected number of clusters. For a single cluster, \code{lambda} <= 1 is appropriate,
-while for two, three, and four clusters, \code{lambda} should be set to 1.59, 2.82, and 3.92, respectively.
-For five or more clusters, \code{lambda} can be set equal to the elicited number of clusters.
+Prior expectations about the number of communities can inform the choice of
+\code{lambda} in the SBM prior. Under the shifted Poisson prior, the expected number
+of available components is \code{1 + lambda}.
+To specify an expected count of two, three, or four components, set \code{lambda}
+to 1, 2, or 3, respectively. More generally, for an expected count of K > 1,
+set \code{lambda = K - 1}, including when K is five or greater.
+To favor one component while still allowing multiple components, choose a
+small positive value, such as \code{lambda = 0.5} (or less), which assigns approximately
+61\% prior probability to one component. An expected count of exactly one
+is only approached as \code{lambda} approaches zero.
 
 Supported community detection algorithms: \code{"louvain"}, \code{"walktrap"}, \code{"fast_greedy"},
 \code{"infomap"}, \code{"label_prop"}, \code{"edge_betweenness"}.
